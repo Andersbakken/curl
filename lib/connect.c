@@ -353,7 +353,8 @@ static CURLcode bindlocal(struct connectdata *conn,
 
       rc = Curl_resolv(conn, dev, 0, &h);
       if(rc == CURLRESOLV_PENDING)
-        (void)Curl_resolver_wait_resolv(conn, &h);
+        (void)data->resolver->functions.wait_resolv(data->resolver->userdata,
+                                                    conn, &h);
       conn->ip_version = ipver;
 
       if(h) {
@@ -964,10 +965,25 @@ void Curl_sndbufset(curl_socket_t sockfd)
  * singleipconnect() connects to the given IP only, and it may return without
  * having connected.
  */
+void *get_in_addr(struct sockaddr *sa)
+{
+    if(sa->sa_family == AF_INET)
+      return &(((struct sockaddr_in *)sa)->sin_addr);
+    return &(((struct sockaddr_in6 *)sa)->sin6_addr);
+}
 static CURLcode singleipconnect(struct connectdata *conn,
                                 const Curl_addrinfo *ai,
                                 curl_socket_t *sockp)
 {
+  char s[INET6_ADDRSTRLEN];
+  inet_ntop(ai->ai_family, get_in_addr((struct sockaddr *)ai->ai_addr),
+            s, sizeof s);
+  printf("singleipconnect(%s)\n", s);
+
+  if(strchr(s, ':')) {
+    return CURLE_AGAIN;
+  }
+
   struct Curl_sockaddr_ex addr;
   int rc = -1;
   int error = 0;

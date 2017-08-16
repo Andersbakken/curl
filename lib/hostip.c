@@ -494,7 +494,9 @@ int Curl_resolv(struct connectdata *conn,
         /* the response to our resolve call will come asynchronously at
            a later time, good or bad */
         /* First, check that we haven't received the info by now */
-        result = Curl_resolver_is_resolved(conn, &dns);
+        struct Curl_resolver *resolver = data->resolver;
+        result = resolver->functions.is_resolved(resolver->userdata,
+                                                 conn, &dns);
         if(result) /* error detected */
           return CURLRESOLV_ERROR;
         if(dns)

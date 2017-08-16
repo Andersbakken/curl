@@ -127,10 +127,10 @@ void Curl_resolver_cleanup(void *resolver)
  * environment ('resolver' member of the UrlState structure).  Does nothing
  * here.
  */
-int Curl_resolver_duphandle(void **to, void *from)
+int Curl_resolver_duphandle(void *userdata, struct Curl_resolver **to)
 {
+  (void)userdata;
   (void)to;
-  (void)from;
   return CURLE_OK;
 }
 
@@ -139,7 +139,7 @@ static void destroy_async_data(struct Curl_async *);
 /*
  * Cancel all possibly still on-going resolves for this connection.
  */
-void Curl_resolver_cancel(struct connectdata *conn)
+void Curl_resolver_cancel(void *userdata, struct connectdata *conn)
 {
   destroy_async_data(&conn->async);
 }
@@ -455,12 +455,14 @@ static CURLcode resolver_error(struct connectdata *conn)
  *
  * This is the version for resolves-in-a-thread.
  */
-CURLcode Curl_resolver_wait_resolv(struct connectdata *conn,
+CURLcode Curl_resolver_wait_resolv(void *userdata,
+                                   struct connectdata *conn,
                                    struct Curl_dns_entry **entry)
 {
   struct thread_data   *td = (struct thread_data*) conn->async.os_specific;
   CURLcode result = CURLE_OK;
 
+  (void)userdata;
   DEBUGASSERT(conn && td);
 
   /* wait for the thread to resolve the name */
@@ -491,13 +493,15 @@ CURLcode Curl_resolver_wait_resolv(struct connectdata *conn,
  * name resolve request has completed. It should also make sure to time-out if
  * the operation seems to take too long.
  */
-CURLcode Curl_resolver_is_resolved(struct connectdata *conn,
+CURLcode Curl_resolver_is_resolved(void *userdata,
+                                   struct connectdata *conn,
                                    struct Curl_dns_entry **entry)
 {
   struct Curl_easy *data = conn->data;
   struct thread_data   *td = (struct thread_data*) conn->async.os_specific;
   int done = 0;
 
+  (void)userdata;
   *entry = NULL;
 
   if(!td) {
@@ -543,10 +547,12 @@ CURLcode Curl_resolver_is_resolved(struct connectdata *conn,
   return CURLE_OK;
 }
 
-int Curl_resolver_getsock(struct connectdata *conn,
+int Curl_resolver_getsock(void *userdata,
+                          struct connectdata *conn,
                           curl_socket_t *socks,
                           int numsocks)
 {
+  (void)userdata;
   (void)conn;
   (void)socks;
   (void)numsocks;
@@ -585,7 +591,8 @@ Curl_addrinfo *Curl_resolver_getaddrinfo(struct connectdata *conn,
 /*
  * Curl_resolver_getaddrinfo() - for getaddrinfo
  */
-Curl_addrinfo *Curl_resolver_getaddrinfo(struct connectdata *conn,
+Curl_addrinfo *Curl_resolver_getaddrinfo(void *userdata,
+                                         struct connectdata *conn,
                                          const char *hostname,
                                          int port,
                                          int *waitp)

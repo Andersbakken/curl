@@ -1086,7 +1086,8 @@ static CURLcode ftp_state_use_port(struct connectdata *conn,
   /* resolv ip/host to ip */
   rc = Curl_resolv(conn, host, 0, &h);
   if(rc == CURLRESOLV_PENDING)
-    (void)Curl_resolver_wait_resolv(conn, &h);
+    conn->data->resolver->functions.wait_resolv(conn->data->resolver->userdata,
+                                                conn, &h);
   if(h) {
     res = h->addr;
     /* when we return from this function, we can forget about this entry
@@ -1940,7 +1941,8 @@ static CURLcode ftp_state_pasv_resp(struct connectdata *conn,
     if(rc == CURLRESOLV_PENDING)
       /* BLOCKING, ignores the return code but 'addr' will be NULL in
          case of failure */
-      (void)Curl_resolver_wait_resolv(conn, &addr);
+      conn->data->resolver->functions.wait_resolv(
+        conn->data->resolver->userdata, conn, &addr);
 
     connectport =
       (unsigned short)conn->port; /* we connect to the proxy's port */
@@ -1955,7 +1957,8 @@ static CURLcode ftp_state_pasv_resp(struct connectdata *conn,
     rc = Curl_resolv(conn, ftpc->newhost, ftpc->newport, &addr);
     if(rc == CURLRESOLV_PENDING)
       /* BLOCKING */
-      (void)Curl_resolver_wait_resolv(conn, &addr);
+      conn->data->resolver->functions.wait_resolv(
+        conn->data->resolver->userdata, conn, &addr);
 
     connectport = ftpc->newport; /* we connect to the remote port */
 

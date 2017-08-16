@@ -147,7 +147,67 @@ Curl_addrinfo *Curl_getaddrinfo(struct connectdata *conn,
                                 int port,
                                 int *waitp)
 {
-  return Curl_resolver_getaddrinfo(conn, hostname, port, waitp);
+  CURL *easy = conn->data;
+  Curl_addrinfo *ret;
+  ret = easy->resolver->functions.getaddrinfo(easy->resolver->userdata,
+                                              conn, hostname,
+                                              port, waitp);
+  return ret;
 }
 
 #endif /* CURLRES_ASYNCH */
+
+struct Curl_resolver *Curl_resolver_create(
+  const struct Curl_resolver_functions *functions)
+{
+  struct Curl_resolver *ret;
+  ret = (struct Curl_resolver *)malloc(sizeof(struct Curl_resolver));
+  ret->userdata = 0;
+  memcpy(&ret->functions, functions, sizeof(struct Curl_resolver_functions));
+  if(ret->functions.init(&ret->userdata) != CURLE_OK) {
+    Curl_resolver_destroy(ret);
+    ret = NULL;
+  }
+  return ret;
+}
+
+struct Curl_resolver *Curl_resolver_create_with_userdata(
+  const struct Curl_resolver_functions *functions, void *userdata)
+{
+  struct Curl_resolver *ret;
+  ret = (struct Curl_resolver *)malloc(sizeof(struct Curl_resolver));
+  ret->userdata = userdata;
+  memcpy(&ret->functions, functions, sizeof(struct Curl_resolver_functions));
+  if(ret->functions.init(&ret->userdata) != CURLE_OK) {
+    Curl_resolver_destroy(ret);
+    ret = NULL;
+  }
+  return ret;
+}
+
+void Curl_resolver_destroy(struct Curl_resolver *resolver)
+{
+  resolver->functions.cleanup(resolver->userdata);
+  free(resolver);
+}
+
+static const struct Curl_resolver_functions default_resolver_functions = {
+  Curl_resolver_init,
+  Curl_resolver_cleanup,
+  Curl_resolver_duphandle,
+  Curl_resolver_cancel,
+  Curl_resolver_getsock,
+  Curl_resolver_is_resolved,
+  Curl_resolver_wait_resolv,
+  Curl_resolver_getaddrinfo
+};
+
+const struct Curl_resolver_functions *Curl_default_resolver_functions()
+{
+  return &default_resolver_functions;
+}
+
+struct Curl_resolver *Curl_default_resolver(void)
+{
+  return Curl_resolver_create(&default_resolver_functions);
+}

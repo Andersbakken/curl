@@ -1791,6 +1791,9 @@ typedef enum {
   /* Enable/disable SSH compression */
   CINIT(SSH_COMPRESSION, LONG, 268),
 
+  /* pointer to Curl_resolver * or 0 to us default resolver. */
+  CINIT(RESOLVER, OBJECTPOINT, 269),
+
   CURLOPT_LASTENTRY /* the last unused */
 } CURLoption;
 
@@ -2487,6 +2490,36 @@ typedef struct {
 #define CURL_VERSION_PSL          (1<<20) /* Mozilla's Public Suffix List, used
                                              for cookie domain verification */
 #define CURL_VERSION_HTTPS_PROXY  (1<<21) /* HTTPS-proxy support built-in */
+
+struct Curl_resolver;
+struct connectdata;
+struct Curl_dns_entry;
+struct Curl_addrinfo;
+struct Curl_resolver_functions {
+  CURLcode (*init)(void **userdata);
+  void (*cleanup)(void *userdata);
+  int (*duplicate)(void *userdata, struct Curl_resolver **to);
+  void (*cancel)(void *userdata, struct connectdata *conn);
+  int (*getsock)(void *userdata, struct connectdata *conn,
+                 curl_socket_t *sock, int numsocks);
+  CURLcode (*is_resolved)(void *userdata, struct connectdata *conn,
+                          struct Curl_dns_entry **dns);
+  CURLcode (*wait_resolv)(void *userdata,
+                          struct connectdata *conn,
+                          struct Curl_dns_entry **dnsentry);
+  struct Curl_addrinfo *(*getaddrinfo)(void *userdata,
+                                      struct connectdata *conn,
+                                      const char *hostname,
+                                      int port,
+                                      int *waitp);
+};
+
+const struct Curl_resolver_functions *Curl_default_resolver_functions(void);
+struct Curl_resolver *Curl_default_resolver(void);
+struct Curl_resolver *Curl_resolver_create(const struct Curl_resolver_functions *);
+struct Curl_resolver *Curl_resolver_create_with_userdata(const struct Curl_resolver_functions *,
+                                                         void *);
+void Curl_resolver_destroy(struct Curl_resolver *resolver);
 
  /*
  * NAME curl_version_info()

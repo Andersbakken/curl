@@ -164,7 +164,8 @@ CURLcode Curl_SOCKS4(const char *proxy_user,
 
     if(rc == CURLRESOLV_PENDING)
       /* ignores the return code, but 'dns' remains NULL on failure */
-      (void)Curl_resolver_wait_resolv(conn, &dns);
+      (void)data->resolver->functions.is_resolved(data->resolver->userdata,
+                                                  conn, &dns);
 
     /*
      * We cannot use 'hostent' as a struct that Curl_resolv() returns.  It
@@ -605,7 +606,8 @@ CURLcode Curl_SOCKS5(const char *proxy_user,
 
     if(rc == CURLRESOLV_PENDING) {
       /* this requires that we're in "wait for resolve" state */
-      code = Curl_resolver_wait_resolv(conn, &dns);
+      code = data->resolver->functions.wait_resolv(data->resolver->userdata,
+                                                   conn, &dns);
       if(code)
         return code;
     }
