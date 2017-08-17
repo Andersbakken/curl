@@ -583,7 +583,7 @@ static CURLcode multi_done(struct connectdata **connp,
   }
 
   data->state.done = TRUE; /* called just now! */
-  data->resolver->functions.cancel(data->resolver->userdata, conn);
+  data->resolver->functions.cancel(data->resolver->userdata, data);
 
   if(conn->dns_entry) {
     Curl_resolv_unlock(data, conn->dns_entry); /* done with this */
