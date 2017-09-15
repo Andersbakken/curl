@@ -127,7 +127,7 @@ void Curl_resolver_cleanup(void *resolver)
  * environment ('resolver' member of the UrlState structure).  Does nothing
  * here.
  */
-int Curl_resolver_duphandle(CURL *data, struct Curl_resolver **to)
+int Curl_resolver_duplicate(CURL *data, struct Curl_resolver **to)
 {
   (void)data;
   *to = 0;

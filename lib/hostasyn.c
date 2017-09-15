@@ -201,7 +201,7 @@ CURL_EXTERN void *Curl_resolver_userdata(CURL *data)
 static const struct Curl_resolver_callbacks default_resolver_functions = {
   Curl_resolver_init,
   Curl_resolver_cleanup,
-  Curl_resolver_duphandle,
+  Curl_resolver_duplicate,
   Curl_resolver_cancel,
   Curl_resolver_getsock,
   Curl_resolver_is_resolved,

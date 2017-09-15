@@ -155,22 +155,23 @@ void Curl_resolver_cleanup(void *resolver)
 }
 
 /*
- * Curl_resolver_duphandle()
+ * Curl_resolver_duplicate()
  *
  * Called from curl_easy_duphandle() to duplicate resolver URL-state specific
  * environment ('resolver' member of the UrlState structure).  Duplicates the
  * 'from' ares channel and passes the resulting channel to the 'to' pointer.
  */
-int Curl_resolver_duphandle(CURL *data, struct Curl_resolver **from)
+int Curl_resolver_duplicate(CURL *data, struct Curl_resolver **to)
 {
   /* Clone the ares channel for the new handle */
-  void *to;
+  ares_channel from = (ares_channel)Curl_resolver_userdata(data);
+  ares_channel to_channel;
 
-  if(ARES_SUCCESS != ares_dup((ares_channel*)&to, (ares_channel)from))
+  if(ARES_SUCCESS != ares_dup((ares_channel*)&to_channel, from))
     return CURLE_FAILED_INIT;
-  *from = Curl_resolver_create_with_userdata(Curl_default_resolver_callbacks(),
-                                             to);
-  return *from ? CURLE_OK : CURLE_FAILED_INIT;
+  *to = Curl_resolver_create_with_userdata(Curl_default_resolver_callbacks(),
+                                           to_channel);
+  return *to ? CURLE_OK : CURLE_FAILED_INIT;
 }
 
 static void destroy_async_data(struct Curl_async *async);

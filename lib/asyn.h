@@ -72,14 +72,14 @@ CURLcode Curl_resolver_init(void **userdata);
 void Curl_resolver_cleanup(void *userdata);
 
 /*
- * Curl_resolver_duphandle()
+ * Curl_resolver_duplicate()
  * Called from curl_easy_duphandle() to duplicate resolver URL-state specific
  * environment ('resolver' member of the UrlState structure).  Should
  * duplicate the 'from' handle and pass the resulting handle to the 'to'
  * pointer.  Returning anything else than CURLE_OK causes failed
  * curl_easy_duphandle() call.
  */
-int Curl_resolver_duphandle(CURL *data, struct Curl_resolver **to);
+int Curl_resolver_duplicate(CURL *data, struct Curl_resolver **to);
 
 /*
  * Curl_resolver_cancel().
@@ -150,7 +150,7 @@ struct Curl_addrinfo *Curl_resolver_getaddrinfo(CURL *data,
 #define Curl_resolver_is_resolved(x,y) CURLE_COULDNT_RESOLVE_HOST
 #define Curl_resolver_wait_resolv(x,y) CURLE_COULDNT_RESOLVE_HOST
 #define Curl_resolver_getsock(x,y,z) 0
-#define Curl_resolver_duphandle(x,y) CURLE_OK
+#define Curl_resolver_duplicate(x,y) CURLE_OK
 #define Curl_resolver_init(x) CURLE_OK
 #define Curl_resolver_global_init() CURLE_OK
 #define Curl_resolver_global_cleanup() Curl_nop_stmt
