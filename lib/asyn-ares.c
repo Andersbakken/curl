@@ -295,7 +295,7 @@ static int waitperform(struct connectdata *conn, int timeout_ms)
                     ARES_SOCKET_BAD);
   else {
     /* move through the descriptors and ask for processing on them */
-    for(i=0; i<num; i++)
+    for(i = 0; i<num; i++)
       ares_process_fd((ares_channel)data->resolver->userdata,
                       pfd[i].revents & (POLLRDNORM|POLLIN)?
                       pfd[i].fd:ARES_SOCKET_BAD,
