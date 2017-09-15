@@ -142,7 +142,8 @@ static void destroy_async_data(struct Curl_async *);
 void Curl_resolver_cancel(CURL *data)
 {
   struct connectdata *conn = data->easy_conn;
-  destroy_async_data(&conn->async);
+  if(conn)
+    destroy_async_data(&conn->async);
 }
 
 /* This function is used to init a threaded resolve */

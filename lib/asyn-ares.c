@@ -184,9 +184,10 @@ void Curl_resolver_cancel(CURL *data)
   void *userdata = Curl_resolver_userdata(data);
   ares_channel channel = (ares_channel)userdata;
   struct connectdata *conn = data->easy_conn;
-  if(conn->data && channel)
+  if(channel)
     ares_cancel(channel);
-  destroy_async_data(&conn->async);
+  if(conn)
+    destroy_async_data(&conn->async);
 }
 
 /*
