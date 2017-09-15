@@ -2726,10 +2726,10 @@ struct Curl_resolver_callbacks {
   int (*getsock)(CURL *data, curl_socket_t *sock, int numsocks);
   CURLcode (*is_resolved)(CURL *data, struct Curl_dns_entry **dns);
   CURLcode (*wait_resolv)(CURL *data, struct Curl_dns_entry **dnsentry);
-  struct Curl_addrinfo *(*getaddrinfo)(CURL *data,
-                                       const char *hostname,
-                                       int port,
-                                       int *waitp);
+  struct Curl_addrinfo *(*get_addr_info)(CURL *data,
+                                         const char *hostname,
+                                         int port,
+                                         int *waitp);
 };
 
 typedef struct Curl_resolver_callbacks Curl_resolver_callbacks;

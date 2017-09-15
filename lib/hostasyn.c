@@ -149,8 +149,8 @@ Curl_addrinfo *Curl_getaddrinfo(struct connectdata *conn,
 {
   CURL *data = conn->data;
   Curl_addrinfo *ret;
-  ret = data->resolver->callbacks.getaddrinfo(data, hostname,
-                                              port, waitp);
+  ret = data->resolver->callbacks.get_addr_info(data, hostname,
+                                                port, waitp);
   return ret;
 }
 
