@@ -3025,7 +3025,7 @@ static void conn_free(struct connectdata *conn)
     return;
 
   /* possible left-overs from the async name resolvers */
-  conn->data->resolver->functions.cancel(conn->data->resolver, conn->data);
+  conn->data->resolver->callbacks.cancel(conn->data->resolver, conn->data);
 
   /* close the SSL stuff before we close any sockets since they will/may
      write to the sockets */

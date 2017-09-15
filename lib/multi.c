@@ -583,7 +583,7 @@ static CURLcode multi_done(struct connectdata **connp,
   }
 
   data->state.done = TRUE; /* called just now! */
-  data->resolver->functions.cancel(data->resolver->userdata, data);
+  data->resolver->callbacks.cancel(data->resolver->userdata, data);
 
   if(conn->dns_entry) {
     Curl_resolv_unlock(data, conn->dns_entry); /* done with this */
@@ -887,7 +887,7 @@ static int multi_getsock(struct Curl_easy *data,
     return 0;
 
   case CURLM_STATE_WAITRESOLVE:
-    return data->resolver->functions.getsock(data->resolver->userdata,
+    return data->resolver->callbacks.getsock(data->resolver->userdata,
                                              data->easy_conn, socks,
                                              numsocks);
 
@@ -1209,7 +1209,7 @@ static CURLcode multi_reconnect_request(struct connectdata **connp)
         /* Now, if async is TRUE here, we need to wait for the name
            to resolve */
         struct Curl_resolver *resolver = data->resolver;
-        result = resolver->functions.wait_resolv(resolver->userdata,
+        result = resolver->callbacks.wait_resolv(resolver->userdata,
                                                  conn, NULL);
         if(result)
           return result;
@@ -1509,7 +1509,7 @@ static CURLMcode multi_runsingle(struct Curl_multi *multi,
       }
 
       if(!dns)
-        result = data->resolver->functions.is_resolved(
+        result = data->resolver->callbacks.is_resolved(
           data->resolver->userdata, data->easy_conn, &dns);
 
       /* Update sockets here, because the socket(s) may have been

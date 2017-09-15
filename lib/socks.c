@@ -164,7 +164,7 @@ CURLcode Curl_SOCKS4(const char *proxy_user,
 
     if(rc == CURLRESOLV_PENDING)
       /* ignores the return code, but 'dns' remains NULL on failure */
-      (void)data->resolver->functions.is_resolved(data->resolver->userdata,
+      (void)data->resolver->callbacks.is_resolved(data->resolver->userdata,
                                                   conn, &dns);
 
     /*

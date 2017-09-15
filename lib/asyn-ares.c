@@ -399,7 +399,7 @@ CURLcode Curl_resolver_wait_resolv(void *userdata,
       timeout_ms = 1000;
 
     waitperform(conn, timeout_ms);
-    result = data->resolver->functions.is_resolved(userdata,
+    result = data->resolver->callbacks.is_resolved(userdata,
                                                    conn, &temp_entry);
 
     if(result || conn->async.done)

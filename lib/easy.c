@@ -933,7 +933,7 @@ struct Curl_easy *curl_easy_duphandle(struct Curl_easy *data)
   }
 
   /* Clone the resolver handle, if present, for the new handle */
-  if(data->resolver->functions.duplicate(data->resolver->userdata,
+  if(data->resolver->callbacks.duplicate(data->resolver->userdata,
                                          &outcurl->resolver))
     goto fail;
 
