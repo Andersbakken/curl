@@ -888,7 +888,7 @@ static int multi_getsock(struct Curl_easy *data,
 
   case CURLM_STATE_WAITRESOLVE:
     return data->resolver->callbacks.getsock(data->resolver->userdata,
-                                             data->easy_conn, socks,
+                                             data, socks,
                                              numsocks);
 
   case CURLM_STATE_PROTOCONNECT:
@@ -1210,7 +1210,7 @@ static CURLcode multi_reconnect_request(struct connectdata **connp)
            to resolve */
         struct Curl_resolver *resolver = data->resolver;
         result = resolver->callbacks.wait_resolv(resolver->userdata,
-                                                 conn, NULL);
+                                                 data, NULL);
         if(result)
           return result;
 
@@ -1510,7 +1510,7 @@ static CURLMcode multi_runsingle(struct Curl_multi *multi,
 
       if(!dns)
         result = data->resolver->callbacks.is_resolved(
-          data->resolver->userdata, data->easy_conn, &dns);
+          data->resolver->userdata, data, &dns);
 
       /* Update sockets here, because the socket(s) may have been
          closed and the application thus needs to be told, even if it

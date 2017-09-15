@@ -496,7 +496,7 @@ int Curl_resolv(struct connectdata *conn,
         /* First, check that we haven't received the info by now */
         struct Curl_resolver *resolver = data->resolver;
         result = resolver->callbacks.is_resolved(resolver->userdata,
-                                                 conn, &dns);
+                                                 data, &dns);
         if(result) /* error detected */
           return CURLRESOLV_ERROR;
         if(dns)

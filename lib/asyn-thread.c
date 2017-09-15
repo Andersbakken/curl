@@ -139,8 +139,9 @@ static void destroy_async_data(struct Curl_async *);
 /*
  * Cancel all possibly still on-going resolves for this connection.
  */
-void Curl_resolver_cancel(void *userdata, struct connectdata *conn)
+void Curl_resolver_cancel(void *userdata, CURL *easy)
 {
+  struct connectdata *conn = easy->easy_conn;
   destroy_async_data(&conn->async);
 }
 
@@ -469,9 +470,10 @@ static CURLcode resolver_error(struct connectdata *conn)
  * This is the version for resolves-in-a-thread.
  */
 CURLcode Curl_resolver_wait_resolv(void *userdata,
-                                   struct connectdata *conn,
+                                   CURL *easy,
                                    struct Curl_dns_entry **entry)
 {
+  struct connectdata *conn = easy->easy_conn;
   struct thread_data   *td = (struct thread_data*) conn->async.os_specific;
   CURLcode result = CURLE_OK;
 
@@ -507,10 +509,10 @@ CURLcode Curl_resolver_wait_resolv(void *userdata,
  * the operation seems to take too long.
  */
 CURLcode Curl_resolver_is_resolved(void *userdata,
-                                   struct connectdata *conn,
+                                   CURL *data,
                                    struct Curl_dns_entry **entry)
 {
-  struct Curl_easy *data = conn->data;
+  struct connectdata *conn = data->easy_conn;
   struct thread_data   *td = (struct thread_data*) conn->async.os_specific;
   int done = 0;
 
@@ -561,12 +563,12 @@ CURLcode Curl_resolver_is_resolved(void *userdata,
 }
 
 int Curl_resolver_getsock(void *userdata,
-                          struct connectdata *conn,
+                          CURL *easy,
                           curl_socket_t *socks,
                           int numsocks)
 {
   (void)userdata;
-  (void)conn;
+  (void)easy;
   (void)socks;
   (void)numsocks;
   return 0;
@@ -605,11 +607,12 @@ Curl_addrinfo *Curl_resolver_getaddrinfo(struct connectdata *conn,
  * Curl_resolver_getaddrinfo() - for getaddrinfo
  */
 Curl_addrinfo *Curl_resolver_getaddrinfo(void *userdata,
-                                         struct connectdata *conn,
+                                         CURL *easy,
                                          const char *hostname,
                                          int port,
                                          int *waitp)
 {
+  struct connectdata *conn = easy->easy_conn;
   struct addrinfo hints;
   Curl_addrinfo *res;
   int error;

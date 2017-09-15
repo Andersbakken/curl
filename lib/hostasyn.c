@@ -150,7 +150,7 @@ Curl_addrinfo *Curl_getaddrinfo(struct connectdata *conn,
   CURL *easy = conn->data;
   Curl_addrinfo *ret;
   ret = easy->resolver->callbacks.getaddrinfo(easy->resolver->userdata,
-                                              conn, hostname,
+                                              easy, hostname,
                                               port, waitp);
   return ret;
 }
@@ -187,8 +187,16 @@ struct Curl_resolver *Curl_resolver_create_with_userdata(
 
 void Curl_resolver_destroy(struct Curl_resolver *resolver)
 {
+  assert(resolver);
   resolver->callbacks.cleanup(resolver->userdata);
   free(resolver);
+}
+
+CURL_EXTERN void *Curl_resolver_userdata(CURL *easy)
+{
+  assert(easy);
+  assert(easy->resolver);
+  return easy->resolver->userdata;
 }
 
 static const struct Curl_resolver_callbacks default_resolver_functions = {

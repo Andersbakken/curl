@@ -168,7 +168,7 @@ int Curl_resolver_duphandle(void *userdata, struct Curl_resolver **from)
 
   if(ARES_SUCCESS != ares_dup((ares_channel*)&to, (ares_channel)from))
     return CURLE_FAILED_INIT;
-  *from = Curl_resolver_create_with_userdata(Curl_default_resolver_functions(),
+  *from = Curl_resolver_create_with_userdata(Curl_default_resolver_callbacks(),
                                              to);
   return *from ? CURLE_OK : CURLE_FAILED_INIT;
 }
@@ -178,9 +178,10 @@ static void destroy_async_data(struct Curl_async *async);
 /*
  * Cancel all possibly still on-going resolves for this connection.
  */
-void Curl_resolver_cancel(void *userdata, struct connectdata *conn)
+void Curl_resolver_cancel(void *userdata, CURL *easy)
 {
   ares_channel channel = (ares_channel)userdata;
+  struct connectdata *conn = easy->easy_conn;
   if(conn->data && channel)
     ares_cancel(channel);
   destroy_async_data(&conn->async);
@@ -218,7 +219,7 @@ static void destroy_async_data(struct Curl_async *async)
  */
 
 int Curl_resolver_getsock(void *userdata,
-                          struct connectdata *conn,
+                          CURL *easy,
                           curl_socket_t *socks,
                           int numsocks)
 
@@ -237,7 +238,7 @@ int Curl_resolver_getsock(void *userdata,
   milli = (timeout->tv_sec * 1000) + (timeout->tv_usec/1000);
   if(milli == 0)
     milli += 10;
-  Curl_expire(conn->data, milli, EXPIRE_ASYNC_NAME);
+  Curl_expire(easy, milli, EXPIRE_ASYNC_NAME);
 
   return max;
 }
@@ -295,7 +296,7 @@ static int waitperform(struct connectdata *conn, int timeout_ms)
   else {
     /* move through the descriptors and ask for processing on them */
     for(i=0; i<num; i++)
-      ares_process_fd((ares_channel)data->state.resolver,
+      ares_process_fd((ares_channel)data->resolver->userdata,
                       pfd[i].revents & (POLLRDNORM|POLLIN)?
                       pfd[i].fd:ARES_SOCKET_BAD,
                       pfd[i].revents & (POLLWRNORM|POLLOUT)?
@@ -312,10 +313,10 @@ static int waitperform(struct connectdata *conn, int timeout_ms)
  * Returns normal CURLcode errors.
  */
 CURLcode Curl_resolver_is_resolved(void *userdata,
-                                   struct connectdata *conn,
+                                   CURL *data,
                                    struct Curl_dns_entry **dns)
 {
-  struct Curl_easy *data = conn->data;
+  struct connectdata *conn = data->easy_conn;
   struct ResolverResults *res = (struct ResolverResults *)
     conn->async.os_specific;
   CURLcode result = CURLE_OK;
@@ -356,11 +357,11 @@ CURLcode Curl_resolver_is_resolved(void *userdata,
  * CURLE_OPERATION_TIMEDOUT if a time-out occurred.
  */
 CURLcode Curl_resolver_wait_resolv(void *userdata,
-                                   struct connectdata *conn,
+                                   CURL *data,
                                    struct Curl_dns_entry **entry)
 {
   CURLcode result = CURLE_OK;
-  struct Curl_easy *data = conn->data;
+  struct connectdata *conn = data->easy_conn;
   long timeout;
   struct curltime now = Curl_tvnow();
   struct Curl_dns_entry *temp_entry;
@@ -400,7 +401,7 @@ CURLcode Curl_resolver_wait_resolv(void *userdata,
 
     waitperform(conn, timeout_ms);
     result = data->resolver->callbacks.is_resolved(userdata,
-                                                   conn, &temp_entry);
+                                                   data, &temp_entry);
 
     if(result || conn->async.done)
       break;
@@ -504,13 +505,13 @@ static void query_completed_cb(void *arg,  /* (struct connectdata *) */
  * Curl_freeaddrinfo(), nothing else.
  */
 struct Curl_addrinfo *Curl_resolver_getaddrinfo(void *userdata,
-                                                struct connectdata *conn,
+                                                CURL *data,
                                                 const char *hostname,
                                                 int port,
                                                 int *waitp)
 {
   char *bufp;
-  struct Curl_easy *data = conn->data;
+  struct connectdata *conn = data->easy_conn;
   struct in_addr in;
   int family = PF_INET;
 #ifdef ENABLE_IPV6 /* CURLRES_IPV6 */

@@ -28,7 +28,6 @@
 struct addrinfo;
 struct hostent;
 struct Curl_easy;
-struct connectdata;
 struct Curl_dns_entry;
 
 /*
@@ -89,7 +88,7 @@ int Curl_resolver_duphandle(void *userdata, struct Curl_resolver **to);
  * resolver request. Should also free any temporary resources allocated to
  * perform a request.
  */
-void Curl_resolver_cancel(void *userdata, struct connectdata *conn);
+void Curl_resolver_cancel(void *userdata, CURL *easy);
 
 /* Curl_resolver_getsock()
  *
@@ -99,7 +98,7 @@ void Curl_resolver_cancel(void *userdata, struct connectdata *conn);
  * return bitmask indicating what file descriptors (referring to array indexes
  * in the 'sock' array) to wait for, read/write.
  */
-int Curl_resolver_getsock(void *userdata, struct connectdata *conn,
+int Curl_resolver_getsock(void *userdata, CURL *easy,
                           curl_socket_t *sock, int numsocks);
 
 /*
@@ -112,7 +111,7 @@ int Curl_resolver_getsock(void *userdata, struct connectdata *conn,
  * Returns normal CURLcode errors.
  */
 CURLcode Curl_resolver_is_resolved(void *userdata,
-                                   struct connectdata *conn,
+                                   CURL *easy,
                                    struct Curl_dns_entry **dns);
 
 /*
@@ -128,7 +127,7 @@ CURLcode Curl_resolver_is_resolved(void *userdata,
 
  */
 CURLcode Curl_resolver_wait_resolv(void *userdata,
-                                   struct connectdata *conn,
+                                   CURL *easy,
                                    struct Curl_dns_entry **dnsentry);
 
 /*
@@ -143,7 +142,7 @@ CURLcode Curl_resolver_wait_resolv(void *userdata,
  * correct format to comply with this.
  */
 struct Curl_addrinfo *Curl_resolver_getaddrinfo(void *userdata,
-                                                struct connectdata *conn,
+                                                CURL *easy,
                                                 const char *hostname,
                                                 int port,
                                                 int *waitp);

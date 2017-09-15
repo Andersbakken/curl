@@ -354,7 +354,7 @@ static CURLcode bindlocal(struct connectdata *conn,
       rc = Curl_resolv(conn, dev, 0, &h);
       if(rc == CURLRESOLV_PENDING)
         (void)data->resolver->callbacks.wait_resolv(data->resolver->userdata,
-                                                    conn, &h);
+                                                    data, &h);
       conn->ip_version = ipver;
 
       if(h) {
