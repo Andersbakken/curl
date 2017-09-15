@@ -127,10 +127,10 @@ void Curl_resolver_cleanup(void *resolver)
  * environment ('resolver' member of the UrlState structure).  Does nothing
  * here.
  */
-int Curl_resolver_duphandle(void *userdata, struct Curl_resolver **to)
+int Curl_resolver_duphandle(CURL *data, struct Curl_resolver **to)
 {
-  (void)userdata;
-  (void)to;
+  (void)data;
+  *to = 0;
   return CURLE_OK;
 }
 
@@ -139,9 +139,9 @@ static void destroy_async_data(struct Curl_async *);
 /*
  * Cancel all possibly still on-going resolves for this connection.
  */
-void Curl_resolver_cancel(void *userdata, CURL *easy)
+void Curl_resolver_cancel(CURL *data)
 {
-  struct connectdata *conn = easy->easy_conn;
+  struct connectdata *conn = data->easy_conn;
   destroy_async_data(&conn->async);
 }
 
@@ -469,15 +469,13 @@ static CURLcode resolver_error(struct connectdata *conn)
  *
  * This is the version for resolves-in-a-thread.
  */
-CURLcode Curl_resolver_wait_resolv(void *userdata,
-                                   CURL *easy,
+CURLcode Curl_resolver_wait_resolv(CURL *data,
                                    struct Curl_dns_entry **entry)
 {
-  struct connectdata *conn = easy->easy_conn;
+  struct connectdata *conn = data->easy_conn;
   struct thread_data   *td = (struct thread_data*) conn->async.os_specific;
   CURLcode result = CURLE_OK;
 
-  (void)userdata;
   DEBUGASSERT(conn && td);
 
   /* wait for the thread to resolve the name */
@@ -508,15 +506,13 @@ CURLcode Curl_resolver_wait_resolv(void *userdata,
  * name resolve request has completed. It should also make sure to time-out if
  * the operation seems to take too long.
  */
-CURLcode Curl_resolver_is_resolved(void *userdata,
-                                   CURL *data,
+CURLcode Curl_resolver_is_resolved(CURL *data,
                                    struct Curl_dns_entry **entry)
 {
   struct connectdata *conn = data->easy_conn;
   struct thread_data   *td = (struct thread_data*) conn->async.os_specific;
   int done = 0;
 
-  (void)userdata;
   *entry = NULL;
 
   if(!td) {
@@ -562,13 +558,11 @@ CURLcode Curl_resolver_is_resolved(void *userdata,
   return CURLE_OK;
 }
 
-int Curl_resolver_getsock(void *userdata,
-                          CURL *easy,
+int Curl_resolver_getsock(CURL *data,
                           curl_socket_t *socks,
                           int numsocks)
 {
-  (void)userdata;
-  (void)easy;
+  (void)data;
   (void)socks;
   (void)numsocks;
   return 0;
@@ -606,13 +600,12 @@ Curl_addrinfo *Curl_resolver_getaddrinfo(struct connectdata *conn,
 /*
  * Curl_resolver_getaddrinfo() - for getaddrinfo
  */
-Curl_addrinfo *Curl_resolver_getaddrinfo(void *userdata,
-                                         CURL *easy,
+Curl_addrinfo *Curl_resolver_getaddrinfo(CURL *data,
                                          const char *hostname,
                                          int port,
                                          int *waitp)
 {
-  struct connectdata *conn = easy->easy_conn;
+  struct connectdata *conn = data->easy_conn;
   struct addrinfo hints;
   Curl_addrinfo *res;
   int error;

@@ -2721,17 +2721,12 @@ struct Curl_addrinfo;
 struct Curl_resolver_callbacks {
   CURLcode (*init)(void **userdata);
   void (*cleanup)(void *userdata);
-  int (*duplicate)(void *userdata, struct Curl_resolver **to);
-  void (*cancel)(void *userdata, CURL *conn);
-  int (*getsock)(void *userdata, CURL *easy,
-                 curl_socket_t *sock, int numsocks);
-  CURLcode (*is_resolved)(void *userdata, CURL *conn,
-                          struct Curl_dns_entry **dns);
-  CURLcode (*wait_resolv)(void *userdata,
-                          CURL *easy,
-                          struct Curl_dns_entry **dnsentry);
-  struct Curl_addrinfo *(*getaddrinfo)(void *userdata,
-                                       CURL *easy,
+  int (*duplicate)(CURL *data, struct Curl_resolver **to);
+  void (*cancel)(CURL *conn);
+  int (*getsock)(CURL *data, curl_socket_t *sock, int numsocks);
+  CURLcode (*is_resolved)(CURL *data, struct Curl_dns_entry **dns);
+  CURLcode (*wait_resolv)(CURL *data, struct Curl_dns_entry **dnsentry);
+  struct Curl_addrinfo *(*getaddrinfo)(CURL *data,
                                        const char *hostname,
                                        int port,
                                        int *waitp);

@@ -583,7 +583,7 @@ static CURLcode multi_done(struct connectdata **connp,
   }
 
   data->state.done = TRUE; /* called just now! */
-  data->resolver->callbacks.cancel(data->resolver->userdata, data);
+  data->resolver->callbacks.cancel(data);
 
   if(conn->dns_entry) {
     Curl_resolv_unlock(data, conn->dns_entry); /* done with this */
@@ -887,9 +887,7 @@ static int multi_getsock(struct Curl_easy *data,
     return 0;
 
   case CURLM_STATE_WAITRESOLVE:
-    return data->resolver->callbacks.getsock(data->resolver->userdata,
-                                             data, socks,
-                                             numsocks);
+    return data->resolver->callbacks.getsock(data, socks, numsocks);
 
   case CURLM_STATE_PROTOCONNECT:
   case CURLM_STATE_SENDPROTOCONNECT:
@@ -1209,8 +1207,7 @@ static CURLcode multi_reconnect_request(struct connectdata **connp)
         /* Now, if async is TRUE here, we need to wait for the name
            to resolve */
         struct Curl_resolver *resolver = data->resolver;
-        result = resolver->callbacks.wait_resolv(resolver->userdata,
-                                                 data, NULL);
+        result = resolver->callbacks.wait_resolv(data, NULL);
         if(result)
           return result;
 
@@ -1509,8 +1506,7 @@ static CURLMcode multi_runsingle(struct Curl_multi *multi,
       }
 
       if(!dns)
-        result = data->resolver->callbacks.is_resolved(
-          data->resolver->userdata, data, &dns);
+        result = data->resolver->callbacks.is_resolved(data, &dns);
 
       /* Update sockets here, because the socket(s) may have been
          closed and the application thus needs to be told, even if it

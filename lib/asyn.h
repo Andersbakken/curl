@@ -79,7 +79,7 @@ void Curl_resolver_cleanup(void *userdata);
  * pointer.  Returning anything else than CURLE_OK causes failed
  * curl_easy_duphandle() call.
  */
-int Curl_resolver_duphandle(void *userdata, struct Curl_resolver **to);
+int Curl_resolver_duphandle(CURL *data, struct Curl_resolver **to);
 
 /*
  * Curl_resolver_cancel().
@@ -88,7 +88,7 @@ int Curl_resolver_duphandle(void *userdata, struct Curl_resolver **to);
  * resolver request. Should also free any temporary resources allocated to
  * perform a request.
  */
-void Curl_resolver_cancel(void *userdata, CURL *easy);
+void Curl_resolver_cancel(CURL *data);
 
 /* Curl_resolver_getsock()
  *
@@ -98,7 +98,7 @@ void Curl_resolver_cancel(void *userdata, CURL *easy);
  * return bitmask indicating what file descriptors (referring to array indexes
  * in the 'sock' array) to wait for, read/write.
  */
-int Curl_resolver_getsock(void *userdata, CURL *easy,
+int Curl_resolver_getsock(CURL *data,
                           curl_socket_t *sock, int numsocks);
 
 /*
@@ -110,8 +110,7 @@ int Curl_resolver_getsock(void *userdata, CURL *easy,
  *
  * Returns normal CURLcode errors.
  */
-CURLcode Curl_resolver_is_resolved(void *userdata,
-                                   CURL *easy,
+CURLcode Curl_resolver_is_resolved(CURL *data,
                                    struct Curl_dns_entry **dns);
 
 /*
@@ -126,8 +125,7 @@ CURLcode Curl_resolver_is_resolved(void *userdata,
  * CURLE_OPERATION_TIMEDOUT if a time-out occurred.
 
  */
-CURLcode Curl_resolver_wait_resolv(void *userdata,
-                                   CURL *easy,
+CURLcode Curl_resolver_wait_resolv(CURL *data,
                                    struct Curl_dns_entry **dnsentry);
 
 /*
@@ -141,8 +139,7 @@ CURLcode Curl_resolver_wait_resolv(void *userdata,
  * Each resolver backend must of course make sure to return data in the
  * correct format to comply with this.
  */
-struct Curl_addrinfo *Curl_resolver_getaddrinfo(void *userdata,
-                                                CURL *easy,
+struct Curl_addrinfo *Curl_resolver_getaddrinfo(CURL *data,
                                                 const char *hostname,
                                                 int port,
                                                 int *waitp);

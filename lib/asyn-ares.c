@@ -161,7 +161,7 @@ void Curl_resolver_cleanup(void *resolver)
  * environment ('resolver' member of the UrlState structure).  Duplicates the
  * 'from' ares channel and passes the resulting channel to the 'to' pointer.
  */
-int Curl_resolver_duphandle(void *userdata, struct Curl_resolver **from)
+int Curl_resolver_duphandle(CURL *data, struct Curl_resolver **from)
 {
   /* Clone the ares channel for the new handle */
   void *to;
@@ -178,10 +178,11 @@ static void destroy_async_data(struct Curl_async *async);
 /*
  * Cancel all possibly still on-going resolves for this connection.
  */
-void Curl_resolver_cancel(void *userdata, CURL *easy)
+void Curl_resolver_cancel(CURL *data)
 {
+  void *userdata = Curl_resolver_userdata(data);
   ares_channel channel = (ares_channel)userdata;
-  struct connectdata *conn = easy->easy_conn;
+  struct connectdata *conn = data->easy_conn;
   if(conn->data && channel)
     ares_cancel(channel);
   destroy_async_data(&conn->async);
@@ -218,16 +219,14 @@ static void destroy_async_data(struct Curl_async *async)
  * Returns: sockets-in-use-bitmap
  */
 
-int Curl_resolver_getsock(void *userdata,
-                          CURL *easy,
-                          curl_socket_t *socks,
-                          int numsocks)
+int Curl_resolver_getsock(CURL *data, curl_socket_t *socks, int numsocks)
 
 {
   struct timeval maxtime;
   struct timeval timebuf;
   struct timeval *timeout;
   long milli;
+  void *userdata = Curl_resolver_userdata(data);
   int max = ares_getsock((ares_channel)userdata,
                          (ares_socket_t *)socks, numsocks);
 
@@ -238,7 +237,7 @@ int Curl_resolver_getsock(void *userdata,
   milli = (timeout->tv_sec * 1000) + (timeout->tv_usec/1000);
   if(milli == 0)
     milli += 10;
-  Curl_expire(easy, milli, EXPIRE_ASYNC_NAME);
+  Curl_expire(data, milli, EXPIRE_ASYNC_NAME);
 
   return max;
 }
@@ -312,8 +311,7 @@ static int waitperform(struct connectdata *conn, int timeout_ms)
  *
  * Returns normal CURLcode errors.
  */
-CURLcode Curl_resolver_is_resolved(void *userdata,
-                                   CURL *data,
+CURLcode Curl_resolver_is_resolved(CURL *data,
                                    struct Curl_dns_entry **dns)
 {
   struct connectdata *conn = data->easy_conn;
@@ -356,8 +354,7 @@ CURLcode Curl_resolver_is_resolved(void *userdata,
  * Returns CURLE_COULDNT_RESOLVE_HOST if the host was not resolved, and
  * CURLE_OPERATION_TIMEDOUT if a time-out occurred.
  */
-CURLcode Curl_resolver_wait_resolv(void *userdata,
-                                   CURL *data,
+CURLcode Curl_resolver_wait_resolv(CURL *data,
                                    struct Curl_dns_entry **entry)
 {
   CURLcode result = CURLE_OK;
@@ -365,6 +362,7 @@ CURLcode Curl_resolver_wait_resolv(void *userdata,
   long timeout;
   struct curltime now = Curl_tvnow();
   struct Curl_dns_entry *temp_entry;
+  void *userdata = Curl_resolver_userdata(data);
 
   if(entry)
     *entry = NULL; /* clear on entry */
@@ -400,8 +398,7 @@ CURLcode Curl_resolver_wait_resolv(void *userdata,
       timeout_ms = 1000;
 
     waitperform(conn, timeout_ms);
-    result = data->resolver->callbacks.is_resolved(userdata,
-                                                   data, &temp_entry);
+    result = data->resolver->callbacks.is_resolved(data, &temp_entry);
 
     if(result || conn->async.done)
       break;
@@ -504,8 +501,7 @@ static void query_completed_cb(void *arg,  /* (struct connectdata *) */
  * memory we need to free after use. That memory *MUST* be freed with
  * Curl_freeaddrinfo(), nothing else.
  */
-struct Curl_addrinfo *Curl_resolver_getaddrinfo(void *userdata,
-                                                CURL *data,
+struct Curl_addrinfo *Curl_resolver_getaddrinfo(CURL *data,
                                                 const char *hostname,
                                                 int port,
                                                 int *waitp)
@@ -517,6 +513,7 @@ struct Curl_addrinfo *Curl_resolver_getaddrinfo(void *userdata,
 #ifdef ENABLE_IPV6 /* CURLRES_IPV6 */
   struct in6_addr in6;
 #endif /* CURLRES_IPV6 */
+  void *userdata = Curl_resolver_userdata(data);
 
   *waitp = 0; /* default to synchronous response */
 
