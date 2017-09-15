@@ -1862,7 +1862,7 @@ struct Names {
  */
 
 struct Curl_resolver {
-  struct Curl_resolver_functions functions;
+  struct Curl_resolver_callbacks callbacks;
   void *userdata;
   bool owned;
 };

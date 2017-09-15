@@ -158,12 +158,12 @@ Curl_addrinfo *Curl_getaddrinfo(struct connectdata *conn,
 #endif /* CURLRES_ASYNCH */
 
 struct Curl_resolver *Curl_resolver_create(
-  const struct Curl_resolver_functions *functions)
+  const struct Curl_resolver_callbacks *functions)
 {
   struct Curl_resolver *ret;
   ret = (struct Curl_resolver *)malloc(sizeof(struct Curl_resolver));
   ret->userdata = 0;
-  memcpy(&ret->functions, functions, sizeof(struct Curl_resolver_functions));
+  memcpy(&ret->functions, functions, sizeof(struct Curl_resolver_callbacks));
   if(ret->functions.init(&ret->userdata) != CURLE_OK) {
     Curl_resolver_destroy(ret);
     ret = NULL;
@@ -172,12 +172,12 @@ struct Curl_resolver *Curl_resolver_create(
 }
 
 struct Curl_resolver *Curl_resolver_create_with_userdata(
-  const struct Curl_resolver_functions *functions, void *userdata)
+  const struct Curl_resolver_callbacks *functions, void *userdata)
 {
   struct Curl_resolver *ret;
   ret = (struct Curl_resolver *)malloc(sizeof(struct Curl_resolver));
   ret->userdata = userdata;
-  memcpy(&ret->functions, functions, sizeof(struct Curl_resolver_functions));
+  memcpy(&ret->functions, functions, sizeof(struct Curl_resolver_callbacks));
   if(ret->functions.init(&ret->userdata) != CURLE_OK) {
     Curl_resolver_destroy(ret);
     ret = NULL;
@@ -191,7 +191,7 @@ void Curl_resolver_destroy(struct Curl_resolver *resolver)
   free(resolver);
 }
 
-static const struct Curl_resolver_functions default_resolver_functions = {
+static const struct Curl_resolver_callbacks default_resolver_functions = {
   Curl_resolver_init,
   Curl_resolver_cleanup,
   Curl_resolver_duphandle,
@@ -202,7 +202,7 @@ static const struct Curl_resolver_functions default_resolver_functions = {
   Curl_resolver_getaddrinfo
 };
 
-const struct Curl_resolver_functions *Curl_default_resolver_functions()
+const struct Curl_resolver_callbacks *Curl_default_resolver_callbacks()
 {
   return &default_resolver_functions;
 }

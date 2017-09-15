@@ -606,7 +606,7 @@ CURLcode Curl_SOCKS5(const char *proxy_user,
 
     if(rc == CURLRESOLV_PENDING) {
       /* this requires that we're in "wait for resolve" state */
-      code = data->resolver->functions.wait_resolv(data->resolver->userdata,
+      code = data->resolver->callbacks.wait_resolv(data->resolver->userdata,
                                                    conn, &dns);
       if(code)
         return code;

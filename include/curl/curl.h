@@ -2548,11 +2548,11 @@ struct Curl_resolver;
 struct connectdata;
 struct Curl_dns_entry;
 struct Curl_addrinfo;
-struct Curl_resolver_functions {
+struct Curl_resolver_callbacks {
   CURLcode (*init)(void **userdata);
   void (*cleanup)(void *userdata);
   int (*duplicate)(void *userdata, struct Curl_resolver **to);
-  void (*cancel)(void *userdata, struct CURL *conn);
+  void (*cancel)(void *userdata, CURL *conn);
   int (*getsock)(void *userdata, struct connectdata *conn,
                  curl_socket_t *sock, int numsocks);
   CURLcode (*is_resolved)(void *userdata, struct connectdata *conn,
@@ -2567,12 +2567,16 @@ struct Curl_resolver_functions {
                                        int *waitp);
 };
 
-const struct Curl_resolver_functions *Curl_default_resolver_functions(void);
-struct Curl_resolver *Curl_default_resolver(void);
-struct Curl_resolver *Curl_resolver_create(const struct Curl_resolver_functions *);
-struct Curl_resolver *Curl_resolver_create_with_userdata(const struct Curl_resolver_functions *,
-                                                         void *);
-void Curl_resolver_destroy(struct Curl_resolver *resolver);
+typedef struct Curl_resolver_callbacks Curl_resolver_callbacks;
+
+CURL_EXTERN
+const Curl_resolver_callbacks *Curl_default_resolver_callbacks(void);
+CURL_EXTERN struct Curl_resolver *Curl_default_resolver(void);
+CURL_EXTERN struct Curl_resolver *Curl_resolver_create(
+  const struct Curl_resolver_callbacks *);
+CURL_EXTERN struct Curl_resolver *Curl_resolver_create_with_userdata(
+  const Curl_resolver_callbacks *, void *);
+CURL_EXTERN void Curl_resolver_destroy(struct Curl_resolver *resolver);
 
 
 #ifdef  __cplusplus
