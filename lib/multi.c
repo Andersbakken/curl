@@ -1207,7 +1207,7 @@ static CURLcode multi_reconnect_request(struct connectdata **connp)
         /* Now, if async is TRUE here, we need to wait for the name
            to resolve */
         struct Curl_resolver *resolver = data->resolver;
-        result = resolver->callbacks.wait_resolv(data, NULL);
+        result = resolver->callbacks.wait_resolv(data);
         if(result)
           return result;
 
@@ -1505,8 +1505,12 @@ static CURLMcode multi_runsingle(struct Curl_multi *multi,
         infof(data, "Hostname '%s' was found in DNS cache\n", hostname);
       }
 
-      if(!dns)
-        result = data->resolver->callbacks.is_resolved(data, &dns);
+      if(!dns) {
+        int wait;
+        result = data->resolver->callbacks.is_resolved(data, &wait);
+        if(!result && !wait)
+          dns = conn->async.dns;
+      }
 
       /* Update sockets here, because the socket(s) may have been
          closed and the application thus needs to be told, even if it

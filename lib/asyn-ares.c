@@ -313,34 +313,33 @@ static int waitperform(struct connectdata *conn, int timeout_ms)
  *
  * Returns normal CURLcode errors.
  */
-CURLcode Curl_resolver_is_resolved(CURL *data,
-                                   struct Curl_dns_entry **dns)
+CURLcode Curl_resolver_is_resolved(CURL *data, int *waitp)
 {
   struct connectdata *conn = data->easy_conn;
   struct ResolverResults *res = (struct ResolverResults *)
     conn->async.os_specific;
   CURLcode result = CURLE_OK;
 
-  *dns = NULL;
-
   waitperform(conn, 0);
 
   if(res && !res->num_pending) {
-    (void)Curl_addrinfo_callback(conn, res->last_status, res->temp_ai);
+    result = Curl_addrinfo_callback(data, res->last_status, res->temp_ai);
     /* temp_ai ownership is moved to the connection, so we need not free-up
        them */
     res->temp_ai = NULL;
-    if(!conn->async.dns) {
+    if(result) {
       failf(data, "Could not resolve: %s (%s)",
             conn->async.hostname, ares_strerror(conn->async.status));
       result = conn->bits.proxy?CURLE_COULDNT_RESOLVE_PROXY:
         CURLE_COULDNT_RESOLVE_HOST;
     }
-    else
-      *dns = conn->async.dns;
 
     destroy_async_data(&conn->async);
+    *waitp = false;
   }
+  else
+    *waitp = true;
+
 
   return result;
 }
@@ -356,18 +355,14 @@ CURLcode Curl_resolver_is_resolved(CURL *data,
  * Returns CURLE_COULDNT_RESOLVE_HOST if the host was not resolved, and
  * CURLE_OPERATION_TIMEDOUT if a time-out occurred.
  */
-CURLcode Curl_resolver_wait_resolv(CURL *data,
-                                   struct Curl_dns_entry **entry)
+CURLcode Curl_resolver_wait_resolv(CURL *data)
 {
   CURLcode result = CURLE_OK;
   struct connectdata *conn = data->easy_conn;
   long timeout;
+  int wait = false;
   struct curltime now = Curl_tvnow();
-  struct Curl_dns_entry *temp_entry;
   void *userdata = Curl_resolver_userdata(data);
-
-  if(entry)
-    *entry = NULL; /* clear on entry */
 
   timeout = Curl_timeleft(data, &now, TRUE);
   if(timeout < 0) {
@@ -400,7 +395,7 @@ CURLcode Curl_resolver_wait_resolv(CURL *data,
       timeout_ms = 1000;
 
     waitperform(conn, timeout_ms);
-    result = data->resolver->callbacks.is_resolved(data, &temp_entry);
+    result = data->resolver->callbacks.is_resolved(data, &wait);
 
     if(result || conn->async.done)
       break;

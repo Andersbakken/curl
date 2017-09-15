@@ -495,13 +495,14 @@ int Curl_resolv(struct connectdata *conn,
            a later time, good or bad */
         /* First, check that we haven't received the info by now */
         struct Curl_resolver *resolver = data->resolver;
-        result = resolver->callbacks.is_resolved(data, &dns);
+        int wait;
+        result = resolver->callbacks.is_resolved(data, &wait);
         if(result) /* error detected */
           return CURLRESOLV_ERROR;
-        if(dns)
-          rc = CURLRESOLV_RESOLVED; /* pointer provided */
-        else
+        if(wait)
           rc = CURLRESOLV_PENDING; /* no info yet */
+        else
+          rc = CURLRESOLV_RESOLVED; /* pointer provided */
       }
     }
     else {

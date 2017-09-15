@@ -2716,7 +2716,6 @@ CURL_EXTERN CURLcode curl_easy_pause(CURL *handle, int bitmask);
 
 struct Curl_resolver;
 struct connectdata;
-struct Curl_dns_entry;
 struct Curl_addrinfo;
 struct Curl_resolver_callbacks {
   CURLcode (*init)(void **userdata);
@@ -2724,8 +2723,8 @@ struct Curl_resolver_callbacks {
   int (*duplicate)(CURL *data, struct Curl_resolver **to);
   void (*cancel)(CURL *conn);
   int (*getsock)(CURL *data, curl_socket_t *sock, int numsocks);
-  CURLcode (*is_resolved)(CURL *data, struct Curl_dns_entry **dns);
-  CURLcode (*wait_resolv)(CURL *data, struct Curl_dns_entry **dnsentry);
+  CURLcode (*is_resolved)(CURL *data, int *waitp);
+  CURLcode (*wait_resolv)(CURL *data);
   struct Curl_addrinfo *(*get_addr_info)(CURL *data,
                                          const char *hostname,
                                          int port,
@@ -2743,6 +2742,16 @@ CURL_EXTERN struct Curl_resolver *Curl_resolver_create_with_userdata(
   const Curl_resolver_callbacks *, void *);
 CURL_EXTERN void Curl_resolver_destroy(struct Curl_resolver *resolver);
 CURL_EXTERN void *Curl_resolver_userdata(CURL *easy);
+
+/*
+ * Curl_addrinfo_callback() is used when we build with any asynch specialty.
+ * Handles end of async request processing. Inserts ai into hostcache when
+ * status is CURL_ASYNC_SUCCESS. Twiddles fields in conn to indicate async
+ * request completed whether successful or failed.
+ */
+CURL_EXTERN CURLcode Curl_addrinfo_callback(CURL *data,
+                                            int status,
+                                            struct Curl_addrinfo *ai);
 
 
 #ifdef  __cplusplus

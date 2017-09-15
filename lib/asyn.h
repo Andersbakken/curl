@@ -110,8 +110,7 @@ int Curl_resolver_getsock(CURL *data,
  *
  * Returns normal CURLcode errors.
  */
-CURLcode Curl_resolver_is_resolved(CURL *data,
-                                   struct Curl_dns_entry **dns);
+CURLcode Curl_resolver_is_resolved(CURL *data, int *waitp);
 
 /*
  * Curl_resolver_wait_resolv()
@@ -125,8 +124,7 @@ CURLcode Curl_resolver_is_resolved(CURL *data,
  * CURLE_OPERATION_TIMEDOUT if a time-out occurred.
 
  */
-CURLcode Curl_resolver_wait_resolv(CURL *data,
-                                   struct Curl_dns_entry **dnsentry);
+CURLcode Curl_resolver_wait_resolv(CURL *data);
 
 /*
  * Curl_resolver_getaddrinfo() - when using this resolver
@@ -148,7 +146,7 @@ struct Curl_addrinfo *Curl_resolver_getaddrinfo(CURL *data,
 /* convert these functions if an asynch resolver isn't used */
 #define Curl_resolver_cancel(x) Curl_nop_stmt
 #define Curl_resolver_is_resolved(x,y) CURLE_COULDNT_RESOLVE_HOST
-#define Curl_resolver_wait_resolv(x,y) CURLE_COULDNT_RESOLVE_HOST
+#define Curl_resolver_wait_resolv(x) CURLE_COULDNT_RESOLVE_HOST
 #define Curl_resolver_getsock(x,y,z) 0
 #define Curl_resolver_duplicate(x,y) CURLE_OK
 #define Curl_resolver_init(x) CURLE_OK

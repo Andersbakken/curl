@@ -246,12 +246,13 @@ int init_thread_sync_data(struct thread_data * td,
   return 0;
 }
 
-static int getaddrinfo_complete(struct connectdata *conn)
+static int getaddrinfo_complete(CURL *data)
 {
+  struct connectdata *conn = data->easy_conn;
   struct thread_sync_data *tsd = conn_thread_sync_data(conn);
   int rc;
 
-  rc = Curl_addrinfo_callback(conn, tsd->sock_error, tsd->res);
+  rc = Curl_addrinfo_callback(data, tsd->sock_error, tsd->res);
   /* The tsd->res structure has been copied to async.dns and perhaps the DNS
      cache.  Set our copy to NULL so destroy_thread_sync_data doesn't free it.
   */
@@ -470,8 +471,7 @@ static CURLcode resolver_error(struct connectdata *conn)
  *
  * This is the version for resolves-in-a-thread.
  */
-CURLcode Curl_resolver_wait_resolv(CURL *data,
-                                   struct Curl_dns_entry **entry)
+CURLcode Curl_resolver_wait_resolv(CURL *data)
 {
   struct connectdata *conn = data->easy_conn;
   struct thread_data   *td = (struct thread_data*) conn->async.os_specific;
@@ -481,14 +481,11 @@ CURLcode Curl_resolver_wait_resolv(CURL *data,
 
   /* wait for the thread to resolve the name */
   if(Curl_thread_join(&td->thread_hnd))
-    result = getaddrinfo_complete(conn);
+    result = getaddrinfo_complete(data);
   else
     DEBUGASSERT(0);
 
   conn->async.done = TRUE;
-
-  if(entry)
-    *entry = conn->async.dns;
 
   if(!conn->async.dns)
     /* a name was not resolved, report error */
@@ -507,17 +504,15 @@ CURLcode Curl_resolver_wait_resolv(CURL *data,
  * name resolve request has completed. It should also make sure to time-out if
  * the operation seems to take too long.
  */
-CURLcode Curl_resolver_is_resolved(CURL *data,
-                                   struct Curl_dns_entry **entry)
+CURLcode Curl_resolver_is_resolved(CURL *data, int *waitp)
 {
   struct connectdata *conn = data->easy_conn;
   struct thread_data   *td = (struct thread_data*) conn->async.os_specific;
   int done = 0;
 
-  *entry = NULL;
-
   if(!td) {
     DEBUGASSERT(td);
+    *waitp = false;
     return CURLE_COULDNT_RESOLVE_HOST;
   }
 
@@ -526,7 +521,7 @@ CURLcode Curl_resolver_is_resolved(CURL *data,
   Curl_mutex_release(td->tsd.mtx);
 
   if(done) {
-    getaddrinfo_complete(conn);
+    getaddrinfo_complete(data);
 
     if(!conn->async.dns) {
       CURLcode result = resolver_error(conn);
@@ -534,7 +529,7 @@ CURLcode Curl_resolver_is_resolved(CURL *data,
       return result;
     }
     destroy_async_data(&conn->async);
-    *entry = conn->async.dns;
+    *waitp = false;
   }
   else {
     /* poll for name lookup done with exponential backoff up to 250ms */
@@ -554,6 +549,7 @@ CURLcode Curl_resolver_is_resolved(CURL *data,
 
     td->interval_end = elapsed + td->poll_interval;
     Curl_expire(conn->data, td->poll_interval, EXPIRE_ASYNC_NAME);
+    *waitp = true;
   }
 
   return CURLE_OK;
