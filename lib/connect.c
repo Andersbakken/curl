@@ -990,7 +990,6 @@ static CURLcode singleipconnect(struct connectdata *conn,
   char s[INET6_ADDRSTRLEN];
   inet_ntop(ai->ai_family, get_in_addr((struct sockaddr *)ai->ai_addr),
             s, sizeof s);
-  printf("singleipconnect(%s)\n", s);
 
   if(strchr(s, ':')) {
     return CURLE_AGAIN;
