@@ -2743,6 +2743,10 @@ CURL_EXTERN struct Curl_resolver *Curl_resolver_create_with_userdata(
 CURL_EXTERN void Curl_resolver_destroy(struct Curl_resolver *resolver);
 CURL_EXTERN void *Curl_resolver_userdata(CURL *easy);
 
+CURL_EXTERN void Curl_freeaddrinfo(struct Curl_addrinfo *cahead);
+struct hostent;
+CURL_EXTERN struct Curl_addrinfo * Curl_he2ai(const struct hostent *he, int port);
+
 /*
  * Curl_addrinfo_callback() is used when we build with any asynch specialty.
  * Handles end of async request processing. Inserts ai into hostcache when

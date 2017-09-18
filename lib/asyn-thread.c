@@ -611,25 +611,6 @@ Curl_addrinfo *Curl_resolver_getaddrinfo(CURL *data,
 
   *waitp = 0; /* default to synchronous response */
 
-#ifndef USE_RESOLVE_ON_IPS
-  {
-    struct in_addr in;
-    /* First check if this is an IPv4 address string */
-    if(Curl_inet_pton(AF_INET, hostname, &in) > 0)
-      /* This is a dotted IP address 123.123.123.123-style */
-      return Curl_ip2addr(AF_INET, &in, hostname, port);
-  }
-#ifdef CURLRES_IPV6
-  {
-    struct in6_addr in6;
-    /* check if this is an IPv6 address string */
-    if(Curl_inet_pton(AF_INET6, hostname, &in6) > 0)
-      /* This is an IPv6 address literal */
-      return Curl_ip2addr(AF_INET6, &in6, hostname, port);
-  }
-#endif /* CURLRES_IPV6 */
-#endif /* !USE_RESOLVE_ON_IPS */
-
 #ifdef CURLRES_IPV6
   /*
    * Check if a limited name resolve has been requested.

@@ -46,6 +46,7 @@
 #include "hash.h"
 #include "share.h"
 #include "strerror.h"
+#include "inet_pton.h"
 #include "url.h"
 #include "curl_memory.h"
 /* The last #include file should be: */
@@ -148,6 +149,11 @@ Curl_addrinfo *Curl_getaddrinfo(struct connectdata *conn,
 {
   CURL *data = conn->data;
   Curl_addrinfo *ret;
+#ifndef USE_RESOLVE_ON_IPS
+  ret = Curl_str2addr(hostname, port);
+  if(ret)
+    return ret;
+#endif
   ret = data->resolver->callbacks.get_addr_info(data, hostname,
                                                 port, waitp);
   return ret;
