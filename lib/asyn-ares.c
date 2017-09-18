@@ -420,11 +420,6 @@ CURLcode Curl_resolver_wait_resolv(CURL *data)
     /* failure, so we cancel the ares operation */
     ares_cancel((ares_channel)userdata);
 
-  /* Operation complete, if the lookup was successful we now have the entry
-     in the cache. */
-  if(entry)
-    *entry = conn->async.dns;
-
   if(result)
     /* close the connection, since we can't return failure here without
        cleaning up this connection properly.
