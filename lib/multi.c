@@ -886,8 +886,13 @@ static int multi_getsock(struct Curl_easy *data,
 #endif
     return 0;
 
-  case CURLM_STATE_WAITRESOLVE:
-    return data->resolver->callbacks.getsock(data, socks, numsocks);
+  case CURLM_STATE_WAITRESOLVE: {
+    long timeout = 0;
+    const int ret = data->resolver->callbacks.getsock(data, socks,
+                                                      numsocks, &timeout);
+    if(timeout)
+      Curl_expire(data, timeout, EXPIRE_ASYNC_NAME);
+    return ret; }
 
   case CURLM_STATE_PROTOCONNECT:
   case CURLM_STATE_SENDPROTOCONNECT:

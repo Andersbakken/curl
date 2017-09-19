@@ -557,11 +557,13 @@ CURLcode Curl_resolver_is_resolved(CURL *data, int *waitp)
 
 int Curl_resolver_getsock(CURL *data,
                           curl_socket_t *socks,
-                          int numsocks)
+                          int numsocks,
+                          long *milli)
 {
   (void)data;
   (void)socks;
   (void)numsocks;
+  (void)milli;
   return 0;
 }
 

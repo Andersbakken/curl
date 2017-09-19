@@ -99,7 +99,8 @@ void Curl_resolver_cancel(CURL *data);
  * in the 'sock' array) to wait for, read/write.
  */
 int Curl_resolver_getsock(CURL *data,
-                          curl_socket_t *sock, int numsocks);
+                          curl_socket_t *sock,
+                          int numsocks, long *milli);
 
 /*
  * Curl_resolver_is_resolved()
@@ -147,7 +148,7 @@ struct Curl_addrinfo *Curl_resolver_getaddrinfo(CURL *data,
 #define Curl_resolver_cancel(x) Curl_nop_stmt
 #define Curl_resolver_is_resolved(x,y) CURLE_COULDNT_RESOLVE_HOST
 #define Curl_resolver_wait_resolv(x) CURLE_COULDNT_RESOLVE_HOST
-#define Curl_resolver_getsock(x,y,z) 0
+#define Curl_resolver_getsock(w,x,y,z) 0
 #define Curl_resolver_duplicate(x,y) CURLE_OK
 #define Curl_resolver_init(x) CURLE_OK
 #define Curl_resolver_global_init() CURLE_OK

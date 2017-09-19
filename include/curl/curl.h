@@ -2725,7 +2725,8 @@ struct Curl_resolver_callbacks {
   void (*cleanup)(void *userdata);
   int (*duplicate)(CURL *data, struct Curl_resolver **to);
   void (*cancel)(CURL *conn);
-  int (*getsock)(CURL *data, curl_socket_t *sock, int numsocks);
+  int (*getsock)(CURL *data, curl_socket_t *sock,
+                 int numsocks, long *timeout);
   CURLcode (*is_resolved)(CURL *data, int *waitp);
   CURLcode (*wait_resolv)(CURL *data);
   struct Curl_addrinfo *(*get_addr_info)(CURL *data,
