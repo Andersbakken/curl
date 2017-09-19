@@ -2719,7 +2719,6 @@ CURL_EXTERN CURLcode curl_easy_pause(CURL *handle, int bitmask);
 #define CURLPAUSE_CONT      (CURLPAUSE_RECV_CONT|CURLPAUSE_SEND_CONT)
 
 struct Curl_resolver;
-struct connectdata;
 struct Curl_addrinfo;
 struct Curl_resolver_callbacks {
   CURLcode (*init)(void **userdata);
