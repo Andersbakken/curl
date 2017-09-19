@@ -2498,9 +2498,10 @@ typedef enum {
   CURLINFO_PROXY_SSL_VERIFYRESULT = CURLINFO_LONG + 47,
   CURLINFO_PROTOCOL         = CURLINFO_LONG   + 48,
   CURLINFO_SCHEME           = CURLINFO_STRING + 49,
+  CURLINFO_IP_VERSION       = CURLINFO_LONG   + 50,
   /* Fill in new entries below here! */
 
-  CURLINFO_LASTONE          = 49
+  CURLINFO_LASTONE          = 50
 } CURLINFO;
 
 /* CURLINFO_RESPONSE_CODE is the new name for the option previously known as
