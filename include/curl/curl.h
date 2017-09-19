@@ -132,6 +132,9 @@ typedef int curl_socket_t;
 #define curl_socket_typedef
 #endif /* curl_socket_typedef */
 
+#define CURL_GETSOCK_READABLE (0x00ff)
+#define CURL_GETSOCK_WRITABLE (0xff00)
+
 /* enum for the different supported SSL backends */
 typedef enum {
   CURLSSLBACKEND_NONE = 0,
