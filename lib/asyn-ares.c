@@ -430,23 +430,6 @@ CURLcode Curl_resolver_wait_resolv(CURL *data)
   return result;
 }
 
-/* Connects results to the list */
-static void compound_results(struct ResolverResults *res,
-                             Curl_addrinfo *ai)
-{
-  Curl_addrinfo *ai_tail;
-  if(!ai)
-    return;
-  ai_tail = ai;
-
-  while(ai_tail->ai_next)
-    ai_tail = ai_tail->ai_next;
-
-  /* Add the new results to the list of old results. */
-  ai_tail->ai_next = res->temp_ai;
-  res->temp_ai = ai;
-}
-
 /*
  * ares_query_completed_cb() is the callback that ares will call when
  * the host query initiated by ares_gethostbyname() from Curl_getaddrinfo(),
@@ -477,7 +460,7 @@ static void query_completed_cb(void *arg,  /* (struct connectdata *) */
   if(CURL_ASYNC_SUCCESS == status) {
     Curl_addrinfo *ai = Curl_he2ai(hostent, conn->async.port);
     if(ai) {
-      compound_results(res, ai);
+      res->temp_ai = Curl_addrinfo_append(res->temp_ai, ai);
     }
   }
   /* A successful result overwrites any previous error */

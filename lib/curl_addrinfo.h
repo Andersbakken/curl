@@ -68,11 +68,6 @@ Curl_getaddrinfo_ex(const char *nodename,
                     Curl_addrinfo **result);
 #endif
 
-Curl_addrinfo *
-Curl_ip2addr(int af, const void *inaddr, const char *hostname, int port);
-
-Curl_addrinfo *Curl_str2addr(const char *dotted, int port);
-
 #ifdef USE_UNIX_SOCKETS
 Curl_addrinfo *Curl_unix2addr(const char *path, bool *longpath, bool abstract);
 #endif

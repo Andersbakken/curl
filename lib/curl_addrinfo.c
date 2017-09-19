@@ -364,6 +364,20 @@ Curl_he2ai(const struct hostent *he, int port)
   return firstai;
 }
 
+struct Curl_addrinfo *Curl_addrinfo_append(struct Curl_addrinfo *head,
+                                           struct Curl_addrinfo *tail)
+{
+  struct Curl_addrinfo *tmp;
+  if(!tail)
+    return head;
+  if(!head)
+    return tail;
+  tmp = head;
+  while(tmp->ai_next)
+    tmp = tmp->ai_next;
+  tmp->ai_next = tail;
+  return head;
+}
 
 struct namebuff {
   struct hostent hostentry;

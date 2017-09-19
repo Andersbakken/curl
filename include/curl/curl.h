@@ -2749,8 +2749,20 @@ CURL_EXTERN void *Curl_resolver_userdata(CURL *easy);
 
 CURL_EXTERN void Curl_freeaddrinfo(struct Curl_addrinfo *cahead);
 struct hostent;
+
+CURL_EXTERN struct Curl_addrinfo *
+Curl_addrinfo_append(struct Curl_addrinfo *head, struct Curl_addrinfo *tail);
+
 CURL_EXTERN struct Curl_addrinfo *
 Curl_he2ai(const struct hostent *he, int port);
+
+CURL_EXTERN struct Curl_addrinfo *
+Curl_ip2addr(int af, const void *inaddr, const char *hostname, int port);
+
+CURL_EXTERN struct Curl_addrinfo *
+Curl_str2addr(const char *dotted, int port);
+
+
 
 /*
  * Curl_addrinfo_callback() is used when we build with any asynch specialty.
