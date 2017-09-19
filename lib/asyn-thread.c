@@ -645,12 +645,12 @@ Curl_addrinfo *Curl_resolver_getaddrinfo(CURL *data,
   }
 
   /* fall-back to blocking version */
-  infof(conn->data, "init_resolve_thread() failed for %s; %s\n",
+  infof(data, "init_resolve_thread() failed for %s; %s\n",
         hostname, Curl_strerror(conn, errno));
 
   error = Curl_getaddrinfo_ex(hostname, sbuf, &hints, &res);
   if(error) {
-    infof(conn->data, "getaddrinfo() failed for %s:%d; %s\n",
+    infof(data, "getaddrinfo() failed for %s:%d; %s\n",
           hostname, port, Curl_strerror(conn, SOCKERRNO));
     return NULL;
   }
