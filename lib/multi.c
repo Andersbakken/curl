@@ -405,6 +405,14 @@ CURLMcode curl_multi_add_handle(struct Curl_multi *multi,
     data->dns.hostcachetype = HCACHE_MULTI;
   }
 
+  if(!data->resolver) {
+    data->resolver = Curl_default_resolver();
+    if(!data->resolver) {
+      return CURLM_OUT_OF_MEMORY;
+    }
+    data->resolver->owned = true;
+  }
+
   /* Point to the multi's connection cache */
   data->state.conn_cache = &multi->conn_cache;
 

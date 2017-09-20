@@ -149,11 +149,6 @@ Curl_addrinfo *Curl_getaddrinfo(struct connectdata *conn,
 {
   CURL *data = conn->data;
   Curl_addrinfo *ret;
-#ifndef USE_RESOLVE_ON_IPS
-  ret = Curl_str2addr(hostname, port);
-  if(ret)
-    return ret;
-#endif
   ret = data->resolver->callbacks.get_addr_info(data, hostname,
                                                 port, waitp);
   return ret;

@@ -612,6 +612,11 @@ Curl_addrinfo *Curl_resolver_getaddrinfo(CURL *data,
   int pf = PF_INET;
 
   *waitp = 0; /* default to synchronous response */
+#ifndef USE_RESOLVE_ON_IPS
+  res = Curl_str2addr(hostname, port);
+  if(res)
+    return res;
+#endif
 
 #ifdef CURLRES_IPV6
   /*

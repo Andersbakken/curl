@@ -475,7 +475,7 @@ CURLcode Curl_close(struct Curl_easy *data)
   Curl_safefree(data->info.wouldredirect);
 
   /* this destroys the channel and we cannot use it anymore after this */
-  if(data->resolver->owned)
+  if(data->resolver && data->resolver->owned)
     Curl_resolver_destroy(data->resolver);
   data->resolver = 0;
 
@@ -7015,13 +7015,6 @@ CURLcode Curl_connect(struct Curl_easy *data,
   CURLcode result;
 
   *asyncp = FALSE; /* assume synchronous resolves by default */
-
-  if(!data->resolver) {
-    data->resolver = Curl_default_resolver();
-    if(!data->resolver)
-      return CURLE_INTERFACE_FAILED;
-    data->resolver->owned = true;
-  }
 
   /* call the stuff that needs to be called */
   result = create_conn(data, in_connect, asyncp);

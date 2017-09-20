@@ -484,8 +484,17 @@ struct Curl_addrinfo *Curl_resolver_getaddrinfo(CURL *data,
   struct connectdata *conn = data->easy_conn;
   int family = PF_INET;
   void *userdata = Curl_resolver_userdata(data);
+#ifndef USE_RESOLVE_ON_IPS
+  Curl_addrinfo *addr;
+#endif
 
   *waitp = 0; /* default to synchronous response */
+
+#ifndef USE_RESOLVE_ON_IPS
+  addr = Curl_str2addr(hostname, port);
+  if(addr)
+    return addr;
+#endif
 
 #ifdef ENABLE_IPV6 /* CURLRES_IPV6 */
   switch(conn->ip_version) {
