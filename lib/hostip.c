@@ -499,10 +499,13 @@ int Curl_resolv(struct connectdata *conn,
         result = resolver->callbacks.is_resolved(data, &wait);
         if(result) /* error detected */
           return CURLRESOLV_ERROR;
-        if(wait)
+        if(wait) {
           rc = CURLRESOLV_PENDING; /* no info yet */
-        else
+        }
+        else {
           rc = CURLRESOLV_RESOLVED; /* pointer provided */
+          dns = conn->async.dns;
+        }
       }
     }
     else {
