@@ -165,7 +165,7 @@ struct Curl_resolver *Curl_resolver_create(
   const struct Curl_resolver_callbacks *callbacks)
 {
   struct Curl_resolver *ret;
-  ret = (struct Curl_resolver *)malloc(sizeof(struct Curl_resolver));
+  ret = (struct Curl_resolver *)calloc(1, sizeof(struct Curl_resolver));
   ret->userdata = 0;
   memcpy(&ret->callbacks, callbacks, sizeof(struct Curl_resolver_callbacks));
   if(ret->callbacks.init(&ret->userdata) != CURLE_OK) {
@@ -179,7 +179,7 @@ struct Curl_resolver *Curl_resolver_create_with_userdata(
   const struct Curl_resolver_callbacks *callbacks, void *userdata)
 {
   struct Curl_resolver *ret;
-  ret = (struct Curl_resolver *)malloc(sizeof(struct Curl_resolver));
+  ret = (struct Curl_resolver *)calloc(1, sizeof(struct Curl_resolver));
   ret->userdata = userdata;
   memcpy(&ret->callbacks, callbacks, sizeof(struct Curl_resolver_callbacks));
   if(ret->callbacks.init(&ret->userdata) != CURLE_OK) {
