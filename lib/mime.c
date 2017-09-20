@@ -296,9 +296,12 @@ static char *escape_string(const char *src, size_t len)
   for(i = 0; len; len--) {
     char c = *src++;
 
-    if(c == '"' || c == '\\' || !c)
+    if(c == '"' || c == '\\' || !c) {
       dst[i++] = '\\';
-    dst[i++] = c? c: '0';
+      if(!c)
+        c = '0';
+    }
+    dst[i++] = c;
   }
 
   dst[i] = '\0';
@@ -969,11 +972,14 @@ static size_t mime_subparts_read(char *buffer, size_t size, size_t nitems,
           convbuf = buffer;
         }
 #endif
-        mimesetstate(&mime->state,
-                     part? MIMESTATE_CONTENT: MIMESTATE_END, part);
+        mimesetstate(&mime->state, MIMESTATE_CONTENT, part);
       }
       break;
     case MIMESTATE_CONTENT:
+      if(!part) {
+        mimesetstate(&mime->state, MIMESTATE_END, NULL);
+        break;
+      }
       sz = readback_part(part, buffer, nitems);
       switch(sz) {
       case CURL_READFUNC_ABORT:
@@ -1601,7 +1607,7 @@ CURLcode Curl_mime_prepare_headers(curl_mimepart *part,
 
   /* Be sure we won't access old headers later. */
   if(part->state.state == MIMESTATE_CURLHEADERS)
-    mimesetstate(&mime->state, MIMESTATE_CURLHEADERS, NULL);
+    mimesetstate(&part->state, MIMESTATE_CURLHEADERS, NULL);
 
   /* Build the content-type header. */
   s = search_header(part->userheaders, "Content-Type");
@@ -1701,7 +1707,7 @@ CURLcode Curl_mime_prepare_headers(curl_mimepart *part,
   /* If we were reading curl-generated headers, restart with new ones (this
      should not occur). */
   if(part->state.state == MIMESTATE_CURLHEADERS)
-    mimesetstate(&mime->state, MIMESTATE_CURLHEADERS, part->curlheaders);
+    mimesetstate(&part->state, MIMESTATE_CURLHEADERS, part->curlheaders);
 
   /* Process subparts. */
   if(part->kind == MIMEKIND_MULTIPART && mime) {
