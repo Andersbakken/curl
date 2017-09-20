@@ -658,14 +658,6 @@ CURLcode Curl_open(struct Curl_easy **curl)
 
   data->magic = CURLEASY_MAGIC_NUMBER;
 
-  if(!data->resolver) {
-    data->resolver = Curl_default_resolver();
-    if(!data->resolver)
-      return CURLE_INTERFACE_FAILED;
-    data->resolver->owned = true;
-  }
-  assert(data->resolver);
-
   /* We do some initial setup here, all those fields that can't be just 0 */
 
   data->state.buffer = malloc(READBUFFER_SIZE + 1);
@@ -702,9 +694,6 @@ CURLcode Curl_open(struct Curl_easy **curl)
   }
 
   if(result) {
-    if(data->resolver->owned)
-      Curl_resolver_destroy(data->resolver);
-    data->resolver = 0;
     free(data->state.buffer);
     free(data->state.headerbuff);
     Curl_freeset(data);
@@ -3025,7 +3014,8 @@ static void conn_free(struct connectdata *conn)
     return;
 
   /* possible left-overs from the async name resolvers */
-  conn->data->resolver->callbacks.cancel(conn->data);
+  if(conn && conn->data && conn->data->resolver)
+    conn->data->resolver->callbacks.cancel(conn->data);
 
   /* close the SSL stuff before we close any sockets since they will/may
      write to the sockets */
@@ -7025,6 +7015,13 @@ CURLcode Curl_connect(struct Curl_easy *data,
   CURLcode result;
 
   *asyncp = FALSE; /* assume synchronous resolves by default */
+
+  if(!data->resolver) {
+    data->resolver = Curl_default_resolver();
+    if(!data->resolver)
+      return CURLE_INTERFACE_FAILED;
+    data->resolver->owned = true;
+  }
 
   /* call the stuff that needs to be called */
   result = create_conn(data, in_connect, asyncp);
