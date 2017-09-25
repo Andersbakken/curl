@@ -160,8 +160,6 @@ tcpkeepalive(struct Curl_easy *data,
   }
 }
 
-static void *get_in_addr(struct sockaddr *sa);
-
 static CURLcode
 singleipconnect(struct connectdata *conn,
                 const Curl_addrinfo *ai, /* start connecting to this */
@@ -966,12 +964,6 @@ void Curl_sndbufset(curl_socket_t sockfd)
  * singleipconnect() connects to the given IP only, and it may return without
  * having connected.
  */
-void *get_in_addr(struct sockaddr *sa)
-{
-    if(sa->sa_family == AF_INET)
-      return &(((struct sockaddr_in *)sa)->sin_addr);
-    return &(((struct sockaddr_in6 *)sa)->sin6_addr);
-}
 static CURLcode singleipconnect(struct connectdata *conn,
                                 const Curl_addrinfo *ai,
                                 curl_socket_t *sockp)
@@ -986,14 +978,6 @@ static CURLcode singleipconnect(struct connectdata *conn,
   char ipaddress[MAX_IPADR_LEN];
   long port;
   bool is_tcp;
-
-  char s[INET6_ADDRSTRLEN];
-  inet_ntop(ai->ai_family, get_in_addr((struct sockaddr *)ai->ai_addr),
-            s, sizeof s);
-
-  if(strchr(s, ':')) {
-    return CURLE_AGAIN;
-  }
 
   *sockp = CURL_SOCKET_BAD;
 
