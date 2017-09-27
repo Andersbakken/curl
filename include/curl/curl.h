@@ -1821,6 +1821,8 @@ typedef enum {
   /* pointer to Curl_resolver * or 0 to us default resolver. */
   CINIT(RESOLVER, OBJECTPOINT, 270),
 
+  CINIT(HAPPY_EYEBALLS_TIMEOUT, LONG, 271),
+
   CURLOPT_LASTENTRY /* the last unused */
 } CURLoption;
 

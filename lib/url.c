@@ -2961,6 +2961,9 @@ CURLcode Curl_setopt(struct Curl_easy *data, CURLoption option,
   case CURLOPT_RESOLVER:
     data->resolver = (struct Curl_resolver *)va_arg(param, void *);
     break;
+  case CURLOPT_HAPPY_EYEBALLS_TIMEOUT:
+    data->set.happy_eyeballs_timeout = va_arg(param, long);
+    break;
   default:
     /* unknown tag and its companion, just ignore: */
     result = CURLE_UNKNOWN_OPTION;

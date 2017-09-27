@@ -726,6 +726,9 @@ CURLcode Curl_is_connected(struct connectdata *conn,
   struct curltime now;
   int rc;
   int i;
+  long happyTimeout = data->set.happy_eyeballs_timeout;
+  if(!happyTimeout)
+    happyTimeout = HAPPY_EYEBALLS_TIMEOUT;
 
   DEBUGASSERT(sockindex >= FIRSTSOCKET && sockindex <= SECONDARYSOCKET);
 
@@ -773,9 +776,8 @@ CURLcode Curl_is_connected(struct connectdata *conn,
 
       /* should we try another protocol family? */
       if(i == 0 && conn->tempaddr[1] == NULL &&
-         curlx_tvdiff(now, conn->connecttime) >= HAPPY_EYEBALLS_TIMEOUT) {
+         curlx_tvdiff(now, conn->connecttime) >= happyTimeout)
         trynextip(conn, sockindex, 1);
-      }
     }
     else if(rc == CURL_CSELECT_OUT || conn->bits.tcp_fastopen) {
       if(verifyconnect(conn->tempsock[i], &error)) {
@@ -1147,8 +1149,13 @@ CURLcode Curl_connecthost(struct connectdata *conn,  /* context */
   struct Curl_easy *data = conn->data;
   struct curltime before = Curl_tvnow();
   CURLcode result = CURLE_COULDNT_CONNECT;
+  long happyTimeout = data->set.happy_eyeballs_timeout;
+  time_t timeout_ms;
 
-  time_t timeout_ms = Curl_timeleft(data, &before, TRUE);
+  if(!happyTimeout)
+    happyTimeout = HAPPY_EYEBALLS_TIMEOUT;
+
+  timeout_ms = Curl_timeleft(data, &before, TRUE);
 
   if(timeout_ms < 0) {
     /* a precaution, no need to continue if time already is up */
@@ -1161,7 +1168,6 @@ CURLcode Curl_connecthost(struct connectdata *conn,  /* context */
   conn->tempaddr[1] = NULL;
   conn->tempsock[0] = CURL_SOCKET_BAD;
   conn->tempsock[1] = CURL_SOCKET_BAD;
-  Curl_expire(conn->data, HAPPY_EYEBALLS_TIMEOUT, EXPIRE_HAPPY_EYEBALLS);
 
   /* Max time for the next connection attempt */
   conn->timeoutms_per_addr =
@@ -1174,6 +1180,7 @@ CURLcode Curl_connecthost(struct connectdata *conn,  /* context */
       break;
     conn->tempaddr[0] = conn->tempaddr[0]->ai_next;
   }
+  Curl_expire(conn->data, happyTimeout, EXPIRE_HAPPY_EYEBALLS);
 
   if(conn->tempsock[0] == CURL_SOCKET_BAD) {
     if(!result)
