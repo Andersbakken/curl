@@ -35,7 +35,7 @@ static char data[]=
 
 struct WriteThis {
   char *readptr;
-  size_t sizeleft;
+  curl_off_t sizeleft;
 };
 
 static size_t read_callback(char *ptr, size_t size, size_t nmemb, void *userp)
@@ -55,7 +55,7 @@ static size_t read_callback(char *ptr, size_t size, size_t nmemb, void *userp)
     return 0;
 
 #ifndef LIB645
-  eof = !pooh->sizeleft;
+  eof = pooh->sizeleft <= 0;
   if(!eof)
     pooh->sizeleft--;
 #endif
@@ -83,7 +83,7 @@ static int once(char *URL, bool oldstyle)
 
   pooh.readptr = data;
 #ifndef LIB645
-  datasize = strlen(data);
+  datasize = (curl_off_t)strlen(data);
 #endif
   pooh.sizeleft = datasize;
 
@@ -113,7 +113,7 @@ static int once(char *URL, bool oldstyle)
 
   /* Fill in the file upload part */
   if(oldstyle) {
-    res = curl_mime_name(part, "sendfile", CURL_ZERO_TERMINATED);
+    res = curl_mime_name(part, "sendfile");
     if(!res)
       res = curl_mime_data_cb(part, datasize, read_callback,
                               NULL, NULL, &pooh);
@@ -122,7 +122,7 @@ static int once(char *URL, bool oldstyle)
   }
   else {
     /* new style */
-    res = curl_mime_name(part, "sendfile alternative", CURL_ZERO_TERMINATED);
+    res = curl_mime_name(part, "sendfile alternative");
     if(!res)
       res = curl_mime_data_cb(part, datasize, read_callback,
                               NULL, NULL, &pooh);
@@ -138,7 +138,7 @@ static int once(char *URL, bool oldstyle)
 
   pooh2.readptr = data;
 #ifndef LIB645
-  datasize = strlen(data);
+  datasize = (curl_off_t)strlen(data);
 #endif
   pooh2.sizeleft = datasize;
 
@@ -151,7 +151,7 @@ static int once(char *URL, bool oldstyle)
     return TEST_ERR_MAJOR_BAD;
   }
   /* Fill in the file upload part */
-  res = curl_mime_name(part, "callbackdata", CURL_ZERO_TERMINATED);
+  res = curl_mime_name(part, "callbackdata");
   if(!res)
     res = curl_mime_data_cb(part, datasize, read_callback,
                             NULL, NULL, &pooh2);
@@ -169,7 +169,7 @@ static int once(char *URL, bool oldstyle)
   }
 
   /* Fill in the filename field */
-  res = curl_mime_name(part, "filename", CURL_ZERO_TERMINATED);
+  res = curl_mime_name(part, "filename");
   if(!res)
     res = curl_mime_data(part,
 #ifdef CURL_DOES_CONVERSIONS
@@ -193,7 +193,7 @@ static int once(char *URL, bool oldstyle)
     curl_global_cleanup();
     return TEST_ERR_MAJOR_BAD;
   }
-  res = curl_mime_name(part, "submit", CURL_ZERO_TERMINATED);
+  res = curl_mime_name(part, "submit");
   if(!res)
     res = curl_mime_data(part,
 #ifdef CURL_DOES_CONVERSIONS
@@ -216,7 +216,7 @@ static int once(char *URL, bool oldstyle)
     curl_global_cleanup();
     return TEST_ERR_MAJOR_BAD;
   }
-  res = curl_mime_name(part, "somename", CURL_ZERO_TERMINATED);
+  res = curl_mime_name(part, "somename");
   if(!res)
     res = curl_mime_filename(part, "somefile.txt");
   if(!res)

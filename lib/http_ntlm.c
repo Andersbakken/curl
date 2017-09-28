@@ -37,11 +37,14 @@
 #include "sendf.h"
 #include "strcase.h"
 #include "http_ntlm.h"
+#include "curl_ntlm_core.h"
 #include "curl_ntlm_wb.h"
 #include "vauth/vauth.h"
 #include "url.h"
 
-#if defined(USE_NSS)
+/* SSL backend-specific #if branches in this file must be kept in the order
+   documented in curl_ntlm_core. */
+#if defined(NTLM_NEEDS_NSS_INIT)
 #include "vtls/nssg.h"
 #elif defined(USE_WINDOWS_SSPI)
 #include "curl_sspi.h"
@@ -129,7 +132,7 @@ CURLcode Curl_output_ntlm(struct connectdata *conn, bool proxy)
   DEBUGASSERT(conn);
   DEBUGASSERT(conn->data);
 
-#ifdef USE_NSS
+#if defined(NTLM_NEEDS_NSS_INIT)
   if(CURLE_OK != Curl_nss_force_init(conn->data))
     return CURLE_OUT_OF_MEMORY;
 #endif

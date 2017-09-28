@@ -74,6 +74,7 @@
 #if defined(_AIX) || defined(__NOVELL_LIBC__) || defined(__NetBSD__) || \
     defined(__minix) || defined(__SYMBIAN32__) || defined(__INTEGRITY) || \
     defined(ANDROID) || defined(__ANDROID__) || defined(__OpenBSD__) || \
+    defined(__CYGWIN__) || \
    (defined(__FreeBSD_version) && (__FreeBSD_version < 800000))
 #include <sys/select.h>
 #endif
@@ -2017,8 +2018,7 @@ CURL_EXTERN curl_mimepart *curl_mime_addpart(curl_mime *mime);
  *
  * Set mime/form part name.
  */
-CURL_EXTERN CURLcode curl_mime_name(curl_mimepart *part,
-                                    const char *name, size_t namesize);
+CURL_EXTERN CURLcode curl_mime_name(curl_mimepart *part, const char *name);
 
 /*
  * NAME curl_mime_filename()
@@ -2379,7 +2379,8 @@ typedef struct {
 typedef enum {
   CURLSSLSET_OK = 0,
   CURLSSLSET_UNKNOWN_BACKEND,
-  CURLSSLSET_TOO_LATE
+  CURLSSLSET_TOO_LATE,
+  CURLSSLSET_NO_BACKENDS /* libcurl was built without any SSL support */
 } CURLsslset;
 
 CURL_EXTERN CURLsslset curl_global_sslset(curl_sslbackend id, const char *name,
