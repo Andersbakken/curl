@@ -1180,13 +1180,14 @@ CURLcode Curl_connecthost(struct connectdata *conn,  /* context */
       break;
     conn->tempaddr[0] = conn->tempaddr[0]->ai_next;
   }
-  Curl_expire(conn->data, happyTimeout, EXPIRE_HAPPY_EYEBALLS);
 
   if(conn->tempsock[0] == CURL_SOCKET_BAD) {
     if(!result)
       result = CURLE_COULDNT_CONNECT;
     return result;
   }
+
+  Curl_expire(conn->data, happyTimeout, EXPIRE_HAPPY_EYEBALLS);
 
   data->info.numconnects++; /* to track the number of connections made */
 
