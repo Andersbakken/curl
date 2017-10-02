@@ -1190,6 +1190,7 @@ CURLcode Curl_connecthost(struct connectdata *conn,  /* context */
   Curl_expire(conn->data, happyTimeout, EXPIRE_HAPPY_EYEBALLS);
 
   data->info.numconnects++; /* to track the number of connections made */
+  Curl_expire(conn->data, HAPPY_EYEBALLS_TIMEOUT, EXPIRE_HAPPY_EYEBALLS);
 
   return CURLE_OK;
 }
