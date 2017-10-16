@@ -210,13 +210,13 @@ struct ssl_primary_config {
   bool verifypeer;       /* set TRUE if this is desired */
   bool verifyhost;       /* set TRUE if CN/SAN must match hostname */
   bool verifystatus;     /* set TRUE if certificate status must be checked */
+  bool sessionid;        /* cache session IDs or not */
   char *CApath;          /* certificate dir (doesn't work on windows) */
   char *CAfile;          /* certificate to verify peer against */
   char *clientcert;
   char *random_file;     /* path to file containing "random" data */
   char *egdsocket;       /* path to file containing the EGD daemon socket */
   char *cipher_list;     /* list of ciphers to use */
-  bool sessionid;        /* cache session IDs or not */
 };
 
 struct ssl_config_data {
@@ -1449,7 +1449,7 @@ enum dupstring {
   STRING_PROXY_SERVICE_NAME, /* Proxy service name */
 #endif
 #if !defined(CURL_DISABLE_CRYPTO_AUTH) || defined(USE_KERBEROS5) || \
-    defined(USE_SPNEGO)
+  defined(USE_SPNEGO) || defined(HAVE_GSSAPI)
   STRING_SERVICE_NAME,    /* Service name */
 #endif
   STRING_MAIL_FROM,

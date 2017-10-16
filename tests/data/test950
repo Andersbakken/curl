@@ -1,44 +1,42 @@
 <testcase>
 <info>
 <keywords>
-FTP
-PASV
-CWD
---ftp-method
-nocwd
+SMTP
+VRFY
+--request
 </keywords>
 </info>
+
 #
 # Server-side
 <reply>
 <data>
-bla bla bla
+250 <recipient@example.com>
 </data>
 </reply>
 
+#
 # Client-side
 <client>
 <server>
-ftp
+smtp
 </server>
  <name>
-FTP CWD with --ftp-method nocwd
+SMTP VRFY with custom request
  </name>
- <command>
---ftp-method nocwd ftp://%HOSTIP:%FTPPORT/first/second/th%69rd/298
+
+# the custom request just does it lowercase to remain the same command
+<command>
+smtp://%HOSTIP:%SMTPPORT/950 --mail-rcpt recipient --request "vrfy"
 </command>
 </client>
 
+#
 # Verify data after the test has been "shot"
 <verify>
 <protocol>
-USER anonymous
-PASS ftp@example.com
-PWD
-EPSV
-TYPE I
-SIZE first/second/third/298
-RETR first/second/third/298
+EHLO 950
+vrfy recipient
 QUIT
 </protocol>
 </verify>
