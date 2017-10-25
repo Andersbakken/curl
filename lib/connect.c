@@ -778,6 +778,7 @@ CURLcode Curl_is_connected(struct connectdata *conn,
       if(i == 0 && conn->tempaddr[1] == NULL &&
          Curl_timediff(now, conn->connecttime) >= happyTimeout) {
         trynextip(conn, sockindex, 1);
+      }
     }
     else if(rc == CURL_CSELECT_OUT || conn->bits.tcp_fastopen) {
       if(verifyconnect(conn->tempsock[i], &error)) {
