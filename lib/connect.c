@@ -225,10 +225,10 @@ time_t Curl_timeleft(struct Curl_easy *data,
   /* subtract elapsed time */
   if(duringconnect)
     /* since this most recent connect started */
-    timeout_ms -= Curl_tvdiff(*nowp, data->progress.t_startsingle);
+    timeout_ms -= Curl_timediff(*nowp, data->progress.t_startsingle);
   else
     /* since the entire operation started */
-    timeout_ms -= Curl_tvdiff(*nowp, data->progress.t_startop);
+    timeout_ms -= Curl_timediff(*nowp, data->progress.t_startop);
   if(!timeout_ms)
     /* avoid returning 0 as that means no timeout! */
     return -1;
@@ -768,7 +768,7 @@ CURLcode Curl_is_connected(struct connectdata *conn,
 
     if(rc == 0) { /* no connection yet */
       error = 0;
-      if(curlx_tvdiff(now, conn->connecttime) >= conn->timeoutms_per_addr) {
+      if(Curl_timediff(now, conn->connecttime) >= conn->timeoutms_per_addr) {
         infof(data, "After %ldms connect time, move on!\n",
               conn->timeoutms_per_addr);
         error = ETIMEDOUT;
@@ -776,7 +776,7 @@ CURLcode Curl_is_connected(struct connectdata *conn,
 
       /* should we try another protocol family? */
       if(i == 0 && conn->tempaddr[1] == NULL &&
-         curlx_tvdiff(now, conn->connecttime) >= happyTimeout)
+         Curl_timediff(now, conn->connecttime) >= happyTimeout) {
         trynextip(conn, sockindex, 1);
     }
     else if(rc == CURL_CSELECT_OUT || conn->bits.tcp_fastopen) {
