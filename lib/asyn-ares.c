@@ -22,6 +22,14 @@
 
 #include "curl_setup.h"
 
+/***********************************************************************
+ * Only for ares-enabled builds
+ * And only for functions that fulfill the asynch resolver backend API
+ * as defined in asyn.h, nothing else belongs in this file!
+ **********************************************************************/
+
+#ifdef CURLRES_ARES
+
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
@@ -47,14 +55,6 @@
 #undef in_addr_t
 #define in_addr_t unsigned long
 #endif
-
-/***********************************************************************
- * Only for ares-enabled builds
- * And only for functions that fulfill the asynch resolver backend API
- * as defined in asyn.h, nothing else belongs in this file!
- **********************************************************************/
-
-#ifdef CURLRES_ARES
 
 #include "urldata.h"
 #include "sendf.h"
@@ -360,7 +360,7 @@ CURLcode Curl_resolver_wait_resolv(CURL *data)
   struct connectdata *conn = data->easy_conn;
   long timeout;
   int wait = false;
-  struct curltime now = Curl_tvnow();
+  struct curltime now = Curl_now();
   void *userdata = Curl_resolver_userdata(data);
 
   timeout = Curl_timeleft(data, &now, TRUE);
@@ -402,7 +402,7 @@ CURLcode Curl_resolver_wait_resolv(CURL *data)
     if(Curl_pgrsUpdate(conn))
       result = CURLE_ABORTED_BY_CALLBACK;
     else {
-      struct curltime now2 = Curl_tvnow();
+      struct curltime now2 = Curl_now();
       timediff_t timediff = Curl_timediff(now2, now); /* spent time */
       if(timediff <= 0)
         timeout -= 1; /* always deduct at least 1 */

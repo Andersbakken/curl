@@ -59,7 +59,9 @@
 #define CURL_SOCKET_HASH_TABLE_SIZE 911
 #endif
 
+#ifndef CURL_CONNECTION_HASH_SIZE
 #define CURL_CONNECTION_HASH_SIZE 97
+#endif
 
 #define CURL_MULTI_HANDLE 0x000bab1e
 
@@ -1330,7 +1332,7 @@ static CURLMcode multi_runsingle(struct Curl_multi *multi,
   struct SingleRequest *k;
   time_t timeout_ms;
   time_t recv_timeout_ms;
-  time_t send_timeout_ms;
+  timediff_t send_timeout_ms;
   int control;
 
   if(!GOOD_EASY_HANDLE(data))
@@ -1679,7 +1681,7 @@ static CURLMcode multi_runsingle(struct Curl_multi *multi,
         if(!result) {
           if(!dophase_done) {
             /* some steps needed for wildcard matching */
-            if(data->set.wildcardmatch) {
+            if(data->state.wildcardmatch) {
               struct WildcardData *wc = &data->wildcard;
               if(wc->state == CURLWC_DONE || wc->state == CURLWC_SKIP) {
                 /* skip some states if it is important */
@@ -1831,7 +1833,13 @@ static CURLMcode multi_runsingle(struct Curl_multi *multi,
          (data->easy_conn->writesockfd != CURL_SOCKET_BAD))
         multistate(data, CURLM_STATE_WAITPERFORM);
       else
+      {
+        if(data->state.wildcardmatch &&
+           ((data->easy_conn->handler->flags & PROTOPT_WILDCARD) == 0)) {
+           data->wildcard.state = CURLWC_DONE;
+        }
         multistate(data, CURLM_STATE_DONE);
+      }
       rc = CURLM_CALL_MULTI_PERFORM;
       break;
 
@@ -2048,7 +2056,7 @@ static CURLMcode multi_runsingle(struct Curl_multi *multi,
           data->easy_conn = NULL;
       }
 
-      if(data->set.wildcardmatch) {
+      if(data->state.wildcardmatch) {
         if(data->wildcard.state != CURLWC_DONE) {
           /* if a wildcard is set and we are not ending -> lets start again
              with CURLM_STATE_INIT */
@@ -2165,7 +2173,7 @@ CURLMcode curl_multi_perform(struct Curl_multi *multi, int *running_handles)
   struct Curl_easy *data;
   CURLMcode returncode = CURLM_OK;
   struct Curl_tree *t;
-  struct curltime now = Curl_tvnow();
+  struct curltime now = Curl_now();
 
   if(!GOOD_MULTI_HANDLE(multi))
     return CURLM_BAD_HANDLE;
@@ -2571,7 +2579,7 @@ static CURLMcode multi_socket(struct Curl_multi *multi,
   CURLMcode result = CURLM_OK;
   struct Curl_easy *data = NULL;
   struct Curl_tree *t;
-  struct curltime now = Curl_tvnow();
+  struct curltime now = Curl_now();
 
   if(checkall) {
     /* *perform() deals with running_handles on its own */
@@ -2647,8 +2655,8 @@ static CURLMcode multi_socket(struct Curl_multi *multi,
 
       data = NULL; /* set data to NULL again to avoid calling
                       multi_runsingle() in case there's no need to */
-      now = Curl_tvnow(); /* get a newer time since the multi_runsingle() loop
-                             may have taken some time */
+      now = Curl_now(); /* get a newer time since the multi_runsingle() loop
+                           may have taken some time */
     }
   }
   else {
@@ -2801,7 +2809,7 @@ static CURLMcode multi_timeout(struct Curl_multi *multi,
 
   if(multi->timetree) {
     /* we have a tree of expire times */
-    struct curltime now = Curl_tvnow();
+    struct curltime now = Curl_now();
 
     /* splay the lowest to the bottom */
     multi->timetree = Curl_splay(tv_zero, multi->timetree);
@@ -2967,7 +2975,7 @@ void Curl_expire(struct Curl_easy *data, time_t milli, expire_id id)
 
   DEBUGASSERT(id < EXPIRE_LAST);
 
-  set = Curl_tvnow();
+  set = Curl_now();
   set.tv_sec += milli/1000;
   set.tv_usec += (unsigned int)(milli%1000)*1000;
 

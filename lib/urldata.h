@@ -96,6 +96,10 @@
 #endif
 #endif
 
+#ifdef HAVE_BROTLI
+#include <brotli/decode.h>
+#endif
+
 #include <curl/curl.h>
 
 #include "http_chunks.h" /* for the structs and enum stuff */
@@ -286,6 +290,7 @@ struct digestdata {
   char *qop;
   char *algorithm;
   int nc; /* nounce count */
+  bool userhash;
 #endif
 };
 
@@ -463,16 +468,6 @@ struct hostname {
 #define KEEP_SENDBITS (KEEP_SEND | KEEP_SEND_HOLD | KEEP_SEND_PAUSE)
 
 
-#ifdef HAVE_LIBZ
-typedef enum {
-  ZLIB_UNINIT,          /* uninitialized */
-  ZLIB_INIT,            /* initialized */
-  ZLIB_GZIP_HEADER,     /* reading gzip header */
-  ZLIB_GZIP_INFLATING,  /* inflating gzip stream */
-  ZLIB_INIT_GZIP        /* initialized in transparent gzip mode */
-} zlibInitState;
-#endif
-
 #ifdef CURLRES_ASYNCH
 struct Curl_async {
   char *hostname;
@@ -560,18 +555,8 @@ struct SingleRequest {
   enum expect100 exp100;        /* expect 100 continue state */
   enum upgrade101 upgr101;      /* 101 upgrade state */
 
-  int auto_decoding;            /* What content encoding. sec 3.5, RFC2616. */
-
-#define IDENTITY 0              /* No encoding */
-#define DEFLATE 1               /* zlib deflate [RFC 1950 & 1951] */
-#define GZIP 2                  /* gzip algorithm [RFC 1952] */
-
-#ifdef HAVE_LIBZ
-  zlibInitState zlib_init;      /* possible zlib init state;
-                                   undefined if Content-Encoding header. */
-  z_stream z;                   /* State structure for zlib. */
-#endif
-
+  struct contenc_writer_s *writer_stack;  /* Content unencoding stack. */
+                                          /* See sec 3.5, RFC2616. */
   time_t timeofdoc;
   long bodywrites;
 
@@ -719,6 +704,7 @@ struct Curl_handler {
 #define PROTOPT_PROXY_AS_HTTP (1<<11) /* allow this non-HTTP scheme over a
                                          HTTP proxy as HTTP proxies may know
                                          this protocol and act as a gateway */
+#define PROTOPT_WILDCARD (1<<12) /* protocol supports wildcard matching */
 
 #define CONNCHECK_NONE 0                 /* No checks */
 #define CONNCHECK_ISDEAD (1<<0)          /* Check if the connection is dead. */
@@ -1304,7 +1290,7 @@ struct UrlState {
 
   /* set after initial USER failure, to prevent an authentication loop */
   bool ftp_trying_alternative;
-
+  bool wildcardmatch; /* enable wildcard matching */
   int httpversion;       /* the lowest HTTP version*10 reported by any server
                             involved in this request */
   bool expect100header;  /* TRUE if we added Expect: 100-continue */
@@ -1669,7 +1655,7 @@ struct UserDefined {
   /* Common RTSP header options */
   Curl_RtspReq rtspreq; /* RTSP request type */
   long rtspversion; /* like httpversion, for RTSP */
-  bool wildcardmatch; /* enable wildcard matching */
+  bool wildcard_enabled; /* enable wildcard matching */
   curl_chunk_bgn_callback chunk_bgn; /* called before part of transfer
                                         starts */
   curl_chunk_end_callback chunk_end; /* called after part transferring

@@ -235,15 +235,10 @@ static int setcharset(unsigned char **p, unsigned char *charset)
         return SETCHARSET_FAIL;
       break;
     case CURLFNM_SCHS_MAYRANGE2:
-      if(c == '\\') {
-        c = *(++(*p));
-        if(!ISPRINT(c))
-          return SETCHARSET_FAIL;
-      }
       if(c == ']') {
         return SETCHARSET_OK;
       }
-      if(c == '\\') {
+      else if(c == '\\') {
         c = *(++(*p));
         if(ISPRINT(c)) {
           charset[c] = 1;
@@ -253,7 +248,7 @@ static int setcharset(unsigned char **p, unsigned char *charset)
         else
           return SETCHARSET_FAIL;
       }
-      if(c >= rangestart) {
+      else if(c >= rangestart) {
         if((ISLOWER(c) && ISLOWER(rangestart)) ||
            (ISDIGIT(c) && ISDIGIT(rangestart)) ||
            (ISUPPER(c) && ISUPPER(rangestart))) {
@@ -267,6 +262,8 @@ static int setcharset(unsigned char **p, unsigned char *charset)
         else
           return SETCHARSET_FAIL;
       }
+      else
+        return SETCHARSET_FAIL;
       break;
     case CURLFNM_SCHS_RIGHTBR:
       if(c == '[') {

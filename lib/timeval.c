@@ -24,7 +24,7 @@
 
 #if defined(WIN32) && !defined(MSDOS)
 
-struct curltime Curl_tvnow(void)
+struct curltime Curl_now(void)
 {
   /*
   ** GetTickCount() is available on _all_ Windows versions from W95 up
@@ -48,7 +48,7 @@ struct curltime Curl_tvnow(void)
 
 #elif defined(HAVE_CLOCK_GETTIME_MONOTONIC)
 
-struct curltime Curl_tvnow(void)
+struct curltime Curl_now(void)
 {
   /*
   ** clock_gettime() is granted to be increased monotonically when the
@@ -84,9 +84,40 @@ struct curltime Curl_tvnow(void)
   return cnow;
 }
 
+#elif defined(HAVE_MACH_ABSOLUTE_TIME)
+
+#include <stdint.h>
+#include <mach/mach_time.h>
+
+struct curltime Curl_now(void)
+{
+  /*
+  ** Monotonic timer on Mac OS is provided by mach_absolute_time(), which
+  ** returns time in Mach "absolute time units," which are platform-dependent.
+  ** To convert to nanoseconds, one must use conversion factors specified by
+  ** mach_timebase_info().
+  */
+  static mach_timebase_info_data_t timebase;
+  struct curltime cnow;
+  uint64_t usecs;
+
+  if(0 == timebase.denom)
+    (void) mach_timebase_info(&timebase);
+
+  usecs = mach_absolute_time();
+  usecs *= timebase.numer;
+  usecs /= timebase.denom;
+  usecs /= 1000;
+
+  cnow.tv_sec = usecs / 1000000;
+  cnow.tv_usec = usecs % 1000000;
+
+  return cnow;
+}
+
 #elif defined(HAVE_GETTIMEOFDAY)
 
-struct curltime Curl_tvnow(void)
+struct curltime Curl_now(void)
 {
   /*
   ** gettimeofday() is not granted to be increased monotonically, due to
@@ -103,7 +134,7 @@ struct curltime Curl_tvnow(void)
 
 #else
 
-struct curltime Curl_tvnow(void)
+struct curltime Curl_now(void)
 {
   /*
   ** time() returns the value of time in seconds since the Epoch.
@@ -125,11 +156,8 @@ struct curltime Curl_tvnow(void)
 #endif
 
 /*
- * Make sure that the first argument is the more recent time, as otherwise
- * we'll get a weird negative time-diff back...
- *
- * Returns: the time difference in number of milliseconds. For large diffs it
- * returns 0x7fffffff on 32bit time_t systems.
+ * Returns: time difference in number of milliseconds. For too large diffs it
+ * returns max value.
  *
  * @unittest: 1323
  */
@@ -140,16 +168,12 @@ timediff_t Curl_timediff(struct curltime newer, struct curltime older)
     return TIME_MAX;
   else if(diff <= (TIME_MIN/1000))
     return TIME_MIN;
-  return (timediff_t)(newer.tv_sec-older.tv_sec)*1000+
-    (timediff_t)(newer.tv_usec-older.tv_usec)/1000;
+  return diff * 1000 + (newer.tv_usec-older.tv_usec)/1000;
 }
 
 /*
- * Make sure that the first argument is the more recent time, as otherwise
- * we'll get a weird negative time-diff back...
- *
- * Returns: the time difference in number of microseconds. For too large diffs
- * it returns max value.
+ * Returns: time difference in number of microseconds. For too large diffs it
+ * returns max value.
  */
 timediff_t Curl_timediff_us(struct curltime newer, struct curltime older)
 {
@@ -158,6 +182,5 @@ timediff_t Curl_timediff_us(struct curltime newer, struct curltime older)
     return TIME_MAX;
   else if(diff <= (TIME_MIN/1000000))
     return TIME_MIN;
-  return (timediff_t)(newer.tv_sec-older.tv_sec)*1000000+
-    (timediff_t)(newer.tv_usec-older.tv_usec);
+  return diff * 1000000 + newer.tv_usec-older.tv_usec;
 }
