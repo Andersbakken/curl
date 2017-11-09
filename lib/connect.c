@@ -1151,12 +1151,12 @@ CURLcode Curl_connecthost(struct connectdata *conn,  /* context */
   struct curltime before = Curl_now();
   CURLcode result = CURLE_COULDNT_CONNECT;
   long happyTimeout = data->set.happy_eyeballs_timeout;
-  time_t timeout_ms;
 
+  timediff_t timeout_ms;
   if(!happyTimeout)
     happyTimeout = HAPPY_EYEBALLS_TIMEOUT;
 
-  timediff_t timeout_ms = Curl_timeleft(data, &before, TRUE);
+  timeout_ms = Curl_timeleft(data, &before, TRUE);
 
   if(timeout_ms < 0) {
     /* a precaution, no need to continue if time already is up */

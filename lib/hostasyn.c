@@ -154,8 +154,6 @@ Curl_addrinfo *Curl_getaddrinfo(struct connectdata *conn,
   return ret;
 }
 
-#endif /* CURLRES_ASYNCH */
-
 struct Curl_resolver *Curl_resolver_create(
   const struct Curl_resolver_callbacks *callbacks)
 {
@@ -218,3 +216,5 @@ struct Curl_resolver *Curl_default_resolver(void)
 {
   return Curl_resolver_create(&default_resolver_functions);
 }
+
+#endif /* CURLRES_ASYNCH */
