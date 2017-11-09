@@ -285,6 +285,34 @@ static CURLcode bindlocal(struct connectdata *conn,
 
     /* interface */
     if(!is_host) {
+#ifdef SO_BINDTODEVICE
+      /* I am not sure any other OSs than Linux that provide this feature,
+       * and at the least I cannot test. --Ben
+       *
+       * This feature allows one to tightly bind the local socket to a
+       * particular interface.  This will force even requests to other
+       * local interfaces to go out the external interface.
+       *
+       *
+       * Only bind to the interface when specified as interface, not just
+       * as a hostname or ip address.
+       *
+       * interface might be a VRF, eg: vrf-blue, which means it cannot be
+       * converted to an IP address and would fail Curl_if2ip. Simply try
+       * to use it straight away.
+       */
+      if(setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE,
+                    dev, (curl_socklen_t)strlen(dev) + 1) == 0) {
+        /* This is typically "errno 1, error: Operation not permitted" if
+         * you're not running as root or another suitable privileged
+         * user.
+         * If it succeeds it means the parameter was a valid interface and
+         * not an IP address. Return immediately.
+         */
+        return CURLE_OK;
+      }
+#endif
+
       switch(Curl_if2ip(af, scope, conn->scope_id, dev,
                         myhost, sizeof(myhost))) {
         case IF2IP_NOT_FOUND:
@@ -305,30 +333,6 @@ static CURLcode bindlocal(struct connectdata *conn,
           infof(data, "Local Interface %s is ip %s using address family %i\n",
                 dev, myhost, af);
           done = 1;
-
-#ifdef SO_BINDTODEVICE
-          /* I am not sure any other OSs than Linux that provide this feature,
-           * and at the least I cannot test. --Ben
-           *
-           * This feature allows one to tightly bind the local socket to a
-           * particular interface.  This will force even requests to other
-           * local interfaces to go out the external interface.
-           *
-           *
-           * Only bind to the interface when specified as interface, not just
-           * as a hostname or ip address.
-           */
-          if(setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE,
-                        dev, (curl_socklen_t)strlen(dev) + 1) != 0) {
-            error = SOCKERRNO;
-            infof(data, "SO_BINDTODEVICE %s failed with errno %d: %s;"
-                  " will do regular bind\n",
-                  dev, error, Curl_strerror(conn, error));
-            /* This is typically "errno 1, error: Operation not permitted" if
-               you're not running as root or another suitable privileged
-               user */
-          }
-#endif
           break;
       }
     }
@@ -788,6 +792,9 @@ CURLcode Curl_is_connected(struct connectdata *conn,
         conn->sock[sockindex] = conn->tempsock[i];
         conn->ip_addr = conn->tempaddr[i];
         conn->tempsock[i] = CURL_SOCKET_BAD;
+#ifdef ENABLE_IPV6
+        conn->bits.ipv6 = (conn->ip_addr->ai_family == AF_INET6)?TRUE:FALSE;
+#endif
 
         /* close the other socket, if open */
         if(conn->tempsock[other] != CURL_SOCKET_BAD) {
@@ -1100,10 +1107,6 @@ static CURLcode singleipconnect(struct connectdata *conn,
     return CURLE_OK;
   }
 
-#ifdef ENABLE_IPV6
-  conn->bits.ipv6 = (addr.family == AF_INET6)?TRUE:FALSE;
-#endif
-
   if(-1 == rc) {
     switch(error) {
     case EINPROGRESS:
@@ -1235,7 +1238,7 @@ curl_socket_t Curl_getconnectinfo(struct Curl_easy *data,
     find.tofind = data->state.lastconnect;
     find.found = FALSE;
 
-    Curl_conncache_foreach(data->multi_easy?
+    Curl_conncache_foreach(data, data->multi_easy?
                            &data->multi_easy->conn_cache:
                            &data->multi->conn_cache, &find, conn_is_conn);
 
