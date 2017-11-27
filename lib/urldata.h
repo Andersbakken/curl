@@ -88,18 +88,6 @@
 
 #include "timeval.h"
 
-#ifdef HAVE_ZLIB_H
-#include <zlib.h>               /* for content-encoding */
-#ifdef __SYMBIAN32__
-/* zlib pollutes the namespace with this definition */
-#undef WIN32
-#endif
-#endif
-
-#ifdef HAVE_BROTLI
-#include <brotli/decode.h>
-#endif
-
 #include <curl/curl.h>
 
 #include "http_chunks.h" /* for the structs and enum stuff */
@@ -1015,16 +1003,6 @@ struct connectdata {
 #ifdef USE_UNIX_SOCKETS
   char *unix_domain_socket;
   bool abstract_unix_socket;
-#endif
-
-#ifdef USE_SSL
-  /*
-   * To avoid multiple malloc() calls, the ssl_connect_data structures
-   * associated with a connectdata struct are allocated in the same block
-   * as the latter. This field forces alignment to an 8-byte boundary so
-   * that this all works.
-   */
-  long long *align_data__do_not_use;
 #endif
 };
 

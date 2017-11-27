@@ -28,8 +28,10 @@
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h> /* for sockaddr_un */
 #endif
-#ifdef HAVE_NETINET_TCP_H
-#include <netinet/tcp.h> /* for TCP_NODELAY */
+#ifdef HAVE_LINUX_TCP_H
+#include <linux/tcp.h>
+#elif defined(HAVE_NETINET_TCP_H)
+#include <netinet/tcp.h>
 #endif
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -412,6 +414,10 @@ static CURLcode bindlocal(struct connectdata *conn,
     }
 
     if(done < 1) {
+      /* errorbuf is set false so failf will overwrite any message already in
+         the error buffer, so the user receives this error message instead of a
+         generic resolve error. */
+      data->state.errorbuf = FALSE;
       failf(data, "Couldn't bind to '%s'", dev);
       return CURLE_INTERFACE_FAILED;
     }
@@ -988,6 +994,9 @@ static CURLcode singleipconnect(struct connectdata *conn,
   char ipaddress[MAX_IPADR_LEN];
   long port;
   bool is_tcp;
+#ifdef TCP_FASTOPEN_CONNECT
+  int optval = 1;
+#endif
 
   *sockp = CURL_SOCKET_BAD;
 
@@ -1068,10 +1077,12 @@ static CURLcode singleipconnect(struct connectdata *conn,
   /* Connect TCP sockets, bind UDP */
   if(!isconnected && (conn->socktype == SOCK_STREAM)) {
     if(conn->bits.tcp_fastopen) {
-#if defined(CONNECT_DATA_IDEMPOTENT) /* OS X */
-#ifdef HAVE_BUILTIN_AVAILABLE
+#if defined(CONNECT_DATA_IDEMPOTENT) /* Darwin */
+#  if defined(HAVE_BUILTIN_AVAILABLE)
+      /* while connectx function is available since macOS 10.11 / iOS 9,
+         it did not have the interface declared correctly until
+         Xcode 9 / macOS SDK 10.13 */
       if(__builtin_available(macOS 10.11, iOS 9.0, tvOS 9.0, watchOS 2.0, *)) {
-#endif /* HAVE_BUILTIN_AVAILABLE */
         sa_endpoints_t endpoints;
         endpoints.sae_srcif = 0;
         endpoints.sae_srcaddr = NULL;
@@ -1082,13 +1093,22 @@ static CURLcode singleipconnect(struct connectdata *conn,
         rc = connectx(sockfd, &endpoints, SAE_ASSOCID_ANY,
                       CONNECT_RESUME_ON_READ_WRITE | CONNECT_DATA_IDEMPOTENT,
                       NULL, 0, NULL, NULL);
-#ifdef HAVE_BUILTIN_AVAILABLE
       }
       else {
         rc = connect(sockfd, &addr.sa_addr, addr.addrlen);
       }
-#endif /* HAVE_BUILTIN_AVAILABLE */
-#elif defined(MSG_FASTOPEN) /* Linux */
+#  else
+      rc = connect(sockfd, &addr.sa_addr, addr.addrlen);
+#  endif /* HAVE_BUILTIN_AVAILABLE */
+#elif defined(TCP_FASTOPEN_CONNECT) /* Linux >= 4.11 */
+      if(setsockopt(sockfd, IPPROTO_TCP, TCP_FASTOPEN_CONNECT,
+                    (void *)&optval, sizeof(optval)) < 0)
+        infof(data, "Failed to enable TCP Fast Open on fd %d\n", sockfd);
+      else
+        infof(data, "TCP_FASTOPEN_CONNECT set\n");
+
+      rc = connect(sockfd, &addr.sa_addr, addr.addrlen);
+#elif defined(MSG_FASTOPEN) /* old Linux */
       if(conn->given->flags & PROTOPT_SSL)
         rc = connect(sockfd, &addr.sa_addr, addr.addrlen);
       else

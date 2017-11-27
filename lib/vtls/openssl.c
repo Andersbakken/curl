@@ -838,12 +838,18 @@ int cert_stuff(struct connectdata *conn,
       EVP_PKEY_free(pktmp);
     }
 
-#if !defined(OPENSSL_NO_RSA) && defined(HAVE_OPAQUE_EVP_PKEY)
+#if !defined(OPENSSL_NO_RSA)
     {
       /* If RSA is used, don't check the private key if its flags indicate
        * it doesn't support it. */
       EVP_PKEY *priv_key = SSL_get_privatekey(ssl);
-      if(EVP_PKEY_id(priv_key) == EVP_PKEY_RSA) {
+      int pktype;
+#ifdef HAVE_OPAQUE_EVP_PKEY
+      pktype = EVP_PKEY_id(priv_key);
+#else
+      pktype = priv_key->type;
+#endif
+      if(pktype == EVP_PKEY_RSA) {
         RSA *rsa = EVP_PKEY_get1_RSA(priv_key);
         if(RSA_flags(rsa) & RSA_METHOD_FLAG_NO_CHECK)
           check_privkey = FALSE;
@@ -3061,12 +3067,12 @@ static CURLcode servercert(struct connectdata *conn,
   ASN1_TIME_print(mem, X509_get0_notBefore(BACKEND->server_cert));
   len = BIO_get_mem_data(mem, (char **) &ptr);
   infof(data, " start date: %.*s\n", len, ptr);
-  rc = BIO_reset(mem);
+  (void)BIO_reset(mem);
 
   ASN1_TIME_print(mem, X509_get0_notAfter(BACKEND->server_cert));
   len = BIO_get_mem_data(mem, (char **) &ptr);
   infof(data, " expire date: %.*s\n", len, ptr);
-  rc = BIO_reset(mem);
+  (void)BIO_reset(mem);
 
   BIO_free(mem);
 
