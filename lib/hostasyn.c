@@ -51,6 +51,7 @@
 #include "hash.h"
 #include "share.h"
 #include "strerror.h"
+#include "inet_pton.h"
 #include "url.h"
 #include "curl_memory.h"
 /* The last #include file should be: */
@@ -66,19 +67,18 @@
  *
  * The storage operation locks and unlocks the DNS cache.
  */
-CURLcode Curl_addrinfo_callback(struct connectdata *conn,
+CURLcode Curl_addrinfo_callback(CURL *data,
                                 int status,
                                 struct Curl_addrinfo *ai)
 {
   struct Curl_dns_entry *dns = NULL;
   CURLcode result = CURLE_OK;
+  struct connectdata *conn = data->easy_conn;
 
   conn->async.status = status;
 
   if(CURL_ASYNC_SUCCESS == status) {
     if(ai) {
-      struct Curl_easy *data = conn->data;
-
       if(data->share)
         Curl_share_lock(data, CURL_LOCK_DATA_DNS, CURL_LOCK_ACCESS_SINGLE);
 
@@ -147,7 +147,74 @@ Curl_addrinfo *Curl_getaddrinfo(struct connectdata *conn,
                                 int port,
                                 int *waitp)
 {
-  return Curl_resolver_getaddrinfo(conn, hostname, port, waitp);
+  CURL *data = conn->data;
+  Curl_addrinfo *ret;
+  ret = data->resolver->callbacks.get_addr_info(data, hostname,
+                                                port, waitp);
+  return ret;
+}
+
+struct Curl_resolver *Curl_resolver_create(
+  const struct Curl_resolver_callbacks *callbacks)
+{
+  struct Curl_resolver *ret;
+  ret = (struct Curl_resolver *)calloc(1, sizeof(struct Curl_resolver));
+  ret->userdata = 0;
+  memcpy(&ret->callbacks, callbacks, sizeof(struct Curl_resolver_callbacks));
+  if(ret->callbacks.init(&ret->userdata) != CURLE_OK) {
+    Curl_resolver_destroy(ret);
+    ret = NULL;
+  }
+  return ret;
+}
+
+struct Curl_resolver *Curl_resolver_create_with_userdata(
+  const struct Curl_resolver_callbacks *callbacks, void *userdata)
+{
+  struct Curl_resolver *ret;
+  ret = (struct Curl_resolver *)calloc(1, sizeof(struct Curl_resolver));
+  ret->userdata = userdata;
+  memcpy(&ret->callbacks, callbacks, sizeof(struct Curl_resolver_callbacks));
+  if(ret->callbacks.init(&ret->userdata) != CURLE_OK) {
+    Curl_resolver_destroy(ret);
+    ret = NULL;
+  }
+  return ret;
+}
+
+void Curl_resolver_destroy(struct Curl_resolver *resolver)
+{
+  assert(resolver);
+  resolver->callbacks.cleanup(resolver->userdata);
+  free(resolver);
+}
+
+CURL_EXTERN void *Curl_resolver_userdata(CURL *data)
+{
+  assert(data);
+  assert(data->resolver);
+  return data->resolver->userdata;
+}
+
+static const struct Curl_resolver_callbacks default_resolver_functions = {
+  Curl_resolver_init,
+  Curl_resolver_cleanup,
+  Curl_resolver_duplicate,
+  Curl_resolver_cancel,
+  Curl_resolver_getsock,
+  Curl_resolver_is_resolved,
+  Curl_resolver_wait_resolv,
+  Curl_resolver_getaddrinfo
+};
+
+const struct Curl_resolver_callbacks *Curl_default_resolver_callbacks()
+{
+  return &default_resolver_functions;
+}
+
+struct Curl_resolver *Curl_default_resolver(void)
+{
+  return Curl_resolver_create(&default_resolver_functions);
 }
 
 #endif /* CURLRES_ASYNCH */

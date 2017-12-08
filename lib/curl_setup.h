@@ -523,6 +523,7 @@
  * Mutually exclusive CURLRES_* definitions.
  */
 
+/* #define USE_ARES */
 #ifdef USE_ARES
 #  define CURLRES_ASYNCH
 #  define CURLRES_ARES
