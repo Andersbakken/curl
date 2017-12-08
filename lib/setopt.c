@@ -26,6 +26,10 @@
 #include <limits.h>
 #endif
 
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+
 #ifdef HAVE_LINUX_TCP_H
 #include <linux/tcp.h>
 #endif
@@ -2110,7 +2114,7 @@ static CURLcode setopt(struct Curl_easy *data, CURLoption option,
     data->set.proxy_ssl.primary.sessionid = data->set.ssl.primary.sessionid;
     break;
 
-#ifdef USE_LIBSSH2
+#if defined(USE_LIBSSH2) || defined(USE_LIBSSH)
     /* we only include SSH options if explicitly built to support SSH */
   case CURLOPT_SSH_AUTH_TYPES:
     data->set.ssh_auth_types = va_arg(param, long);
@@ -2161,7 +2165,6 @@ static CURLcode setopt(struct Curl_easy *data, CURLoption option,
     data->set.ssh_keyfunc_userp = va_arg(param, void *);
     break;
 #endif /* HAVE_LIBSSH2_KNOWNHOST_API */
-
 #endif /* USE_LIBSSH2 */
 
   case CURLOPT_HTTP_TRANSFER_DECODING:

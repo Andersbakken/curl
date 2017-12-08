@@ -127,10 +127,6 @@ bool curl_win32_idn_to_ascii(const char *in, char **out);
 #include "curl_memory.h"
 #include "memdebug.h"
 
-/* Local static prototypes */
-static struct connectdata *
-find_oldest_idle_connection_in_bundle(struct Curl_easy *data,
-                                      struct connectbundle *bundle);
 static void conn_free(struct connectdata *conn);
 static void free_fixed_hostname(struct hostname *host);
 static void signalPipeClose(struct curl_llist *pipeline, bool pipe_broke);
@@ -196,8 +192,11 @@ static const struct Curl_handler * const protocols[] = {
   &Curl_handler_tftp,
 #endif
 
-#ifdef USE_LIBSSH2
+#if defined(USE_LIBSSH2) || defined(USE_LIBSSH)
   &Curl_handler_scp,
+#endif
+
+#if defined(USE_LIBSSH2) || defined(USE_LIBSSH)
   &Curl_handler_sftp,
 #endif
 
@@ -711,6 +710,9 @@ static void conn_free(struct connectdata *conn)
   Curl_safefree(conn->unix_domain_socket);
 #endif
 
+#ifdef USE_SSL
+  Curl_safefree(conn->ssl_extra);
+#endif
   free(conn); /* free all the connection oriented data */
 }
 
@@ -765,7 +767,7 @@ CURLcode Curl_disconnect(struct connectdata *conn, bool dead_connection)
 
     /* unlink ourselves! */
   infof(data, "Closing connection %ld\n", conn->connection_id);
-  Curl_conncache_remove_conn(data->state.conn_cache, conn);
+  Curl_conncache_remove_conn(conn, TRUE);
 
   free_fixed_hostname(&conn->host);
   free_fixed_hostname(&conn->conn_to_host);
@@ -931,56 +933,17 @@ proxy_info_matches(const struct proxy_info* data,
   return FALSE;
 }
 
-
 /*
- * This function finds the connection in the connection
- * bundle that has been unused for the longest time.
+ * This function checks if the given connection is dead and extracts it from
+ * the connection cache if so.
  *
- * Returns the pointer to the oldest idle connection, or NULL if none was
- * found.
- */
-static struct connectdata *
-find_oldest_idle_connection_in_bundle(struct Curl_easy *data,
-                                      struct connectbundle *bundle)
-{
-  struct curl_llist_element *curr;
-  timediff_t highscore = -1;
-  timediff_t score;
-  struct curltime now;
-  struct connectdata *conn_candidate = NULL;
-  struct connectdata *conn;
-
-  (void)data;
-
-  now = Curl_now();
-
-  curr = bundle->conn_list.head;
-  while(curr) {
-    conn = curr->ptr;
-
-    if(!conn->inuse) {
-      /* Set higher score for the age passed since the connection was used */
-      score = Curl_timediff(now, conn->now);
-
-      if(score > highscore) {
-        highscore = score;
-        conn_candidate = conn;
-      }
-    }
-    curr = curr->next;
-  }
-
-  return conn_candidate;
-}
-
-/*
- * This function checks if given connection is dead and disconnects if so.
- * (That also removes it from the connection cache.)
+ * When this is called as a Curl_conncache_foreach() callback, the connection
+ * cache lock is held!
  *
- * Returns TRUE if the connection actually was dead and disconnected.
+ * Returns TRUE if the connection was dead and extracted.
  */
-static bool disconnect_if_dead(struct connectdata *conn,
-                               struct Curl_easy *data)
+static bool extract_if_dead(struct connectdata *conn,
+                            struct Curl_easy *data)
 {
   size_t pipeLen = conn->send_pipe.size + conn->recv_pipe.size;
   if(!pipeLen && !conn->inuse) {
@@ -1005,25 +968,30 @@ static bool disconnect_if_dead(struct connectdata *conn,
     if(dead) {
       conn->data = data;
       infof(data, "Connection %ld seems to be dead!\n", conn->connection_id);
-
-      /* disconnect resources */
-      Curl_disconnect(conn, /* dead_connection */TRUE);
+      Curl_conncache_remove_conn(conn, FALSE);
       return TRUE;
     }
   }
   return FALSE;
 }
 
+struct prunedead {
+  struct Curl_easy *data;
+  struct connectdata *extracted;
+};
+
 /*
- * Wrapper to use disconnect_if_dead() function in Curl_conncache_foreach()
+ * Wrapper to use extract_if_dead() function in Curl_conncache_foreach()
  *
- * Returns always 0.
  */
-static int call_disconnect_if_dead(struct connectdata *conn,
-                                      void *param)
+static int call_extract_if_dead(struct connectdata *conn, void *param)
 {
-  struct Curl_easy* data = (struct Curl_easy*)param;
-  disconnect_if_dead(conn, data);
+  struct prunedead *p = (struct prunedead *)param;
+  if(extract_if_dead(conn, p->data)) {
+    /* stop the iteration here, pass back the connection that was extracted */
+    p->extracted = conn;
+    return 1;
+  }
   return 0; /* continue iteration */
 }
 
@@ -1038,8 +1006,14 @@ static void prune_dead_connections(struct Curl_easy *data)
   time_t elapsed = Curl_timediff(now, data->state.conn_cache->last_cleanup);
 
   if(elapsed >= 1000L) {
-    Curl_conncache_foreach(data, data->state.conn_cache, data,
-                           call_disconnect_if_dead);
+    struct prunedead prune;
+    prune.data = data;
+    prune.extracted = NULL;
+    while(Curl_conncache_foreach(data, data->state.conn_cache, &prune,
+                                 call_extract_if_dead)) {
+      /* disconnect it */
+      (void)Curl_disconnect(prune.extracted, /* dead_connection */TRUE);
+    }
     data->state.conn_cache->last_cleanup = now;
   }
 }
@@ -1094,8 +1068,8 @@ ConnectionExists(struct Curl_easy *data,
      Curl_pipeline_site_blacklisted(data, needle))
     canpipe &= ~ CURLPIPE_HTTP1;
 
-  /* Look up the bundle with all the connections to this
-     particular host */
+  /* Look up the bundle with all the connections to this particular host.
+     Locks the connection cache, beware of early returns! */
   bundle = Curl_conncache_find_bundle(needle, data->state.conn_cache);
   if(bundle) {
     /* Max pipe length is zero (unlimited) for multiplexed connections */
@@ -1118,6 +1092,7 @@ ConnectionExists(struct Curl_easy *data,
         if((bundle->multiuse == BUNDLE_UNKNOWN) && data->set.pipewait) {
           infof(data, "Server doesn't support multi-use yet, wait\n");
           *waitpipe = TRUE;
+          Curl_conncache_unlock(needle);
           return FALSE; /* no re-use */
         }
 
@@ -1149,8 +1124,11 @@ ConnectionExists(struct Curl_easy *data,
       check = curr->ptr;
       curr = curr->next;
 
-      if(disconnect_if_dead(check, data))
+      if(extract_if_dead(check, data)) {
+        /* disconnect it */
+        (void)Curl_disconnect(check, /* dead_connection */TRUE);
         continue;
+      }
 
       pipeLen = check->send_pipe.size + check->recv_pipe.size;
 
@@ -1279,6 +1257,11 @@ ConnectionExists(struct Curl_easy *data,
       if(!canpipe && check->inuse)
         /* this request can't be pipelined but the checked connection is
            already in use so we skip it */
+        continue;
+
+      if((check->inuse) && (check->data->multi != needle->data->multi))
+        /* this could be subject for pipeline/multiplex use, but only
+           if they belong to the same multi handle */
         continue;
 
       if(needle->localdev || needle->localport) {
@@ -1467,9 +1450,13 @@ ConnectionExists(struct Curl_easy *data,
   }
 
   if(chosen) {
+    /* mark it as used before releasing the lock */
+    chosen->inuse = TRUE;
+    Curl_conncache_unlock(needle);
     *usethis = chosen;
     return TRUE; /* yes, we found one to use! */
   }
+  Curl_conncache_unlock(needle);
 
   if(foundPendingCandidate && data->set.pipewait) {
     infof(data,
@@ -1788,38 +1775,27 @@ static void llist_dtor(void *user, void *element)
  */
 static struct connectdata *allocate_conn(struct Curl_easy *data)
 {
-  struct connectdata *conn;
-  size_t connsize = sizeof(struct connectdata);
-
-#ifdef USE_SSL
-/* SSLBK_MAX_ALIGN: The max byte alignment a CPU would use */
-#define SSLBK_MAX_ALIGN 32
-  /* The SSL backend-specific data (ssl_backend_data) objects are allocated as
-     part of connectdata at the end. To ensure suitable alignment we will
-     assume a maximum of SSLBK_MAX_ALIGN for alignment. Since calloc returns a
-     pointer suitably aligned for any variable this will ensure the
-     ssl_backend_data array has proper alignment, even if that alignment turns
-     out to be less than SSLBK_MAX_ALIGN. */
-  size_t paddingsize = sizeof(struct connectdata) % SSLBK_MAX_ALIGN;
-  size_t alignsize = paddingsize ? (SSLBK_MAX_ALIGN - paddingsize) : 0;
-  size_t sslbksize = Curl_ssl->sizeof_ssl_backend_data;
-  connsize += alignsize + (4 * sslbksize);
-#endif
-
-  conn = calloc(1, connsize);
+  struct connectdata *conn = calloc(1, sizeof(struct connectdata));
   if(!conn)
     return NULL;
 
 #ifdef USE_SSL
-  /* Point to the ssl_backend_data objects at the end of connectdata.
+  /* The SSL backend-specific data (ssl_backend_data) objects are allocated as
+     a separate array to ensure suitable alignment.
      Note that these backend pointers can be swapped by vtls (eg ssl backend
      data becomes proxy backend data). */
   {
-    char *end = (char *)conn + connsize;
-    conn->ssl[0].backend = ((void *)(end - (4 * sslbksize)));
-    conn->ssl[1].backend = ((void *)(end - (3 * sslbksize)));
-    conn->proxy_ssl[0].backend = ((void *)(end - (2 * sslbksize)));
-    conn->proxy_ssl[1].backend = ((void *)(end - (1 * sslbksize)));
+    size_t sslsize = Curl_ssl->sizeof_ssl_backend_data;
+    char *ssl = calloc(4, sslsize);
+    if(!ssl) {
+      free(conn);
+      return NULL;
+    }
+    conn->ssl_extra = ssl;
+    conn->ssl[0].backend = (void *)ssl;
+    conn->ssl[1].backend = (void *)(ssl + sslsize);
+    conn->proxy_ssl[0].backend = (void *)(ssl + 2 * sslsize);
+    conn->proxy_ssl[1].backend = (void *)(ssl + 3 * sslsize);
   }
 #endif
 
@@ -1948,6 +1924,9 @@ static struct connectdata *allocate_conn(struct Curl_easy *data)
 
   free(conn->master_buffer);
   free(conn->localdev);
+#ifdef USE_SSL
+  free(conn->ssl_extra);
+#endif
   free(conn);
   return NULL;
 }
@@ -2049,7 +2028,7 @@ static CURLcode parseurlandfillconn(struct Curl_easy *data,
   ((('a' <= (str)[0] && (str)[0] <= 'z') || \
     ('A' <= (str)[0] && (str)[0] <= 'Z')) && \
    ((str)[1] == ':' || (str)[1] == '|') && \
-   ((str)[2] == '/' || (str)[2] == 0))
+   ((str)[2] == '/' || (str)[2] == '\\' || (str)[2] == 0))
 
   /* Don't mistake a drive letter for a scheme if the default protocol is file.
      curld --proto-default file c:/foo/bar.txt */
@@ -4405,20 +4384,21 @@ static CURLcode create_conn(struct Curl_easy *data,
   else
     reuse = ConnectionExists(data, conn, &conn_temp, &force_reuse, &waitpipe);
 
-  /* If we found a reusable connection, we may still want to
-     open a new connection if we are pipelining. */
+  /* If we found a reusable connection that is now marked as in use, we may
+     still want to open a new connection if we are pipelining. */
   if(reuse && !force_reuse && IsPipeliningPossible(data, conn_temp)) {
     size_t pipelen = conn_temp->send_pipe.size + conn_temp->recv_pipe.size;
     if(pipelen > 0) {
       infof(data, "Found connection %ld, with requests in the pipe (%zu)\n",
             conn_temp->connection_id, pipelen);
 
-      if(conn_temp->bundle->num_connections < max_host_connections &&
-         data->state.conn_cache->num_connections < max_total_connections) {
+      if(Curl_conncache_bundle_size(conn_temp) < max_host_connections &&
+         Curl_conncache_size(data) < max_total_connections) {
         /* We want a new connection anyway */
         reuse = FALSE;
 
         infof(data, "We can reuse, but we want a new connection anyway\n");
+        Curl_conncache_return_conn(conn_temp);
       }
     }
   }
@@ -4430,9 +4410,10 @@ static CURLcode create_conn(struct Curl_easy *data,
      * just allocated before we can move along and use the previously
      * existing one.
      */
-    conn_temp->inuse = TRUE; /* mark this as being in use so that no other
-                                handle in a multi stack may nick it */
     reuse_conn(conn, conn_temp);
+#ifdef USE_SSL
+    free(conn->ssl_extra);
+#endif
     free(conn);          /* we don't need this anymore */
     conn = conn_temp;
     *in_connect = conn;
@@ -4448,7 +4429,6 @@ static CURLcode create_conn(struct Curl_easy *data,
     /* We have decided that we want a new connection. However, we may not
        be able to do that if we have reached the limit of how many
        connections we are allowed to open. */
-    struct connectbundle *bundle = NULL;
 
     if(conn->handler->flags & PROTOPT_ALPN_NPN) {
       /* The protocol wants it, so set the bits if enabled in the easy handle
@@ -4463,35 +4443,42 @@ static CURLcode create_conn(struct Curl_easy *data,
       /* There is a connection that *might* become usable for pipelining
          "soon", and we wait for that */
       connections_available = FALSE;
-    else
-      bundle = Curl_conncache_find_bundle(conn, data->state.conn_cache);
+    else {
+      /* this gets a lock on the conncache */
+      struct connectbundle *bundle =
+        Curl_conncache_find_bundle(conn, data->state.conn_cache);
 
-    if(max_host_connections > 0 && bundle &&
-       (bundle->num_connections >= max_host_connections)) {
-      struct connectdata *conn_candidate;
+      if(max_host_connections > 0 && bundle &&
+         (bundle->num_connections >= max_host_connections)) {
+        struct connectdata *conn_candidate;
 
-      /* The bundle is full. Let's see if we can kill a connection. */
-      conn_candidate = find_oldest_idle_connection_in_bundle(data, bundle);
+        /* The bundle is full. Extract the oldest connection. */
+        conn_candidate = Curl_conncache_extract_bundle(data, bundle);
+        Curl_conncache_unlock(conn);
 
-      if(conn_candidate) {
-        /* Set the connection's owner correctly, then kill it */
-        conn_candidate->data = data;
-        (void)Curl_disconnect(conn_candidate, /* dead_connection */ FALSE);
+        if(conn_candidate) {
+          /* Set the connection's owner correctly, then kill it */
+          conn_candidate->data = data;
+          (void)Curl_disconnect(conn_candidate, /* dead_connection */ FALSE);
+        }
+        else {
+          infof(data, "No more connections allowed to host: %d\n",
+                max_host_connections);
+          connections_available = FALSE;
+        }
       }
-      else {
-        infof(data, "No more connections allowed to host: %d\n",
-              max_host_connections);
-        connections_available = FALSE;
-      }
+      else
+        Curl_conncache_unlock(conn);
+
     }
 
     if(connections_available &&
        (max_total_connections > 0) &&
-       (data->state.conn_cache->num_connections >= max_total_connections)) {
+       (Curl_conncache_size(data) >= max_total_connections)) {
       struct connectdata *conn_candidate;
 
       /* The cache is full. Let's see if we can kill a connection. */
-      conn_candidate = Curl_conncache_oldest_idle(data);
+      conn_candidate = Curl_conncache_extract_oldest(data);
 
       if(conn_candidate) {
         /* Set the connection's owner correctly, then kill it */
@@ -4514,6 +4501,9 @@ static CURLcode create_conn(struct Curl_easy *data,
       goto out;
     }
     else {
+      /* Mark the connection as used, before we add it */
+      conn->inuse = TRUE;
+
       /*
        * This is a brand new connection, so let's store it in the connection
        * cache of ours!
@@ -4540,9 +4530,6 @@ static CURLcode create_conn(struct Curl_easy *data,
     }
 #endif
   }
-
-  /* Mark the connection as used */
-  conn->inuse = TRUE;
 
   /* Setup and init stuff before DO starts, in preparing for the transfer. */
   Curl_init_do(data, conn);
