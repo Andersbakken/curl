@@ -948,7 +948,11 @@ static int Curl_ossl_init(void)
   if(keylog_file_name && !keylog_file_fp) {
     keylog_file_fp = fopen(keylog_file_name, FOPEN_APPENDTEXT);
     if(keylog_file_fp) {
+#ifdef WIN32
+      if(setvbuf(keylog_file_fp, NULL, _IONBF, 0)) {
+#else
       if(setvbuf(keylog_file_fp, NULL, _IOLBF, 4096)) {
+#endif
         fclose(keylog_file_fp);
         keylog_file_fp = NULL;
       }
@@ -3383,12 +3387,13 @@ static bool Curl_ossl_data_pending(const struct connectdata *conn,
 {
   const struct ssl_connect_data *connssl = &conn->ssl[connindex];
   const struct ssl_connect_data *proxyssl = &conn->proxy_ssl[connindex];
-  if(BACKEND->handle)
-    /* SSL is in use */
-    return (0 != SSL_pending(BACKEND->handle) ||
-           (proxyssl->backend->handle &&
-            0 != SSL_pending(proxyssl->backend->handle))) ?
-           TRUE : FALSE;
+
+  if(connssl->backend->handle && SSL_pending(connssl->backend->handle))
+    return TRUE;
+
+  if(proxyssl->backend->handle && SSL_pending(proxyssl->backend->handle))
+    return TRUE;
+
   return FALSE;
 }
 
