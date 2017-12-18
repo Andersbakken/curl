@@ -2751,31 +2751,25 @@ struct Curl_resolver_callbacks {
 
 typedef struct Curl_resolver_callbacks Curl_resolver_callbacks;
 
-CURL_EXTERN
-const Curl_resolver_callbacks *Curl_default_resolver_callbacks(void);
+CURL_EXTERN const Curl_resolver_callbacks *Curl_default_resolver_callbacks(void);
 CURL_EXTERN struct Curl_resolver *Curl_default_resolver(void);
-CURL_EXTERN struct Curl_resolver *Curl_resolver_create(
-  const struct Curl_resolver_callbacks *);
-CURL_EXTERN struct Curl_resolver *Curl_resolver_create_with_userdata(
-  const Curl_resolver_callbacks *, void *);
+CURL_EXTERN struct Curl_resolver *Curl_resolver_create(const struct Curl_resolver_callbacks *);
+CURL_EXTERN struct Curl_resolver *Curl_resolver_create_with_userdata(const Curl_resolver_callbacks *, void *);
 CURL_EXTERN void Curl_resolver_destroy(struct Curl_resolver *resolver);
 CURL_EXTERN void *Curl_resolver_userdata(CURL *easy);
 
 CURL_EXTERN void Curl_freeaddrinfo(struct Curl_addrinfo *cahead);
 struct hostent;
 
-CURL_EXTERN struct Curl_addrinfo *
-Curl_addrinfo_append(struct Curl_addrinfo *head, struct Curl_addrinfo *tail);
+CURL_EXTERN struct Curl_addrinfo * Curl_addrinfo_append(struct Curl_addrinfo *head,
+                                                        struct Curl_addrinfo *tail);
 
-CURL_EXTERN struct Curl_addrinfo *
-Curl_he2ai(const struct hostent *he, int port);
+CURL_EXTERN struct Curl_addrinfo * Curl_he2ai(const struct hostent *he, int port);
 
-CURL_EXTERN struct Curl_addrinfo *
-Curl_ip2addr(int af, const void *inaddr, const char *hostname, int port);
+CURL_EXTERN struct Curl_addrinfo * Curl_ip2addr(int af, const void *inaddr,
+                                                const char *hostname, int port);
 
-CURL_EXTERN struct Curl_addrinfo *
-Curl_str2addr(const char *dotted, int port);
-
+CURL_EXTERN struct Curl_addrinfo * Curl_str2addr(const char *dotted, int port);
 
 
 /*
