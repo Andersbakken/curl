@@ -781,7 +781,7 @@ CURLcode Curl_loadhostpairs(struct Curl_easy *data)
 {
   struct curl_slist *hostp;
   char hostname[256];
-  int port;
+  int port = 0;
 
   for(hostp = data->change.resolve; hostp; hostp = hostp->next) {
     if(!hostp->data)
@@ -823,67 +823,69 @@ CURLcode Curl_loadhostpairs(struct Curl_easy *data)
       char *entry_id;
       size_t entry_len;
       char address[64];
-      char *addrPointer;
-      char *last;
-      char *tmp;
+      char *addrBegin;
+      char *addrEnd;
+      char *portPtr;
+      char *endPtr;
+      char *hostEnd;
       unsigned long tmpPort;
       int error = true;
 
-      tmp = strchr(hostp->data, ':');
-      if(!tmp || (tmp - hostp->data) >= (ptrdiff_t)sizeof(hostname)) {
+      hostEnd = strchr(hostp->data, ':');
+      if(!hostEnd || (hostEnd - hostp->data) >= (ptrdiff_t)sizeof(hostname)) {
         goto err;
       }
-      memcpy(hostname, hostp->data, tmp - hostp->data);
-      hostname[tmp - hostp->data] = '\0';
+      memcpy(hostname, hostp->data, hostEnd - hostp->data);
+      hostname[hostEnd - hostp->data] = '\0';
 
-      tmpPort = strtoul(tmp + 1, &tmp, 10);
-      if(!tmpPort || tmpPort > USHRT_MAX || *tmp != ':' || !(tmp + 1)) {
+      portPtr = hostEnd + 1;
+      tmpPort = strtoul(portPtr, &endPtr, 10);
+      if(endPtr == portPtr || tmpPort > USHRT_MAX
+         || *endPtr != ':' || !endPtr[1]) {
         goto err;
       }
       port = (int)tmpPort;
+      addrBegin = endPtr + 1;
 
       while(true) {
         size_t alen;
 
-        last = tmp + 1;
-        tmp = strchr(last, ',');
-        if(tmp)
-          alen = tmp - last;
+        addrEnd = strchr(addrBegin, ',');
+        if(addrEnd)
+          alen = addrEnd - addrBegin;
         else
-          alen = strlen(hostp->data) - (last - hostp->data);
+          alen = strlen(addrBegin);
 
         if(alen >= sizeof(address))
           goto err;
 
-        memcpy(address, last, alen);
+        memcpy(address, addrBegin, alen);
         address[alen] = '\0';
 
         /* allow IP(v6) address within [brackets] */
         if(address[0] == '[') {
           if(address[alen-1] != ']')
             /* it needs to also end with ] to be valid */
-            continue;
+            goto err;
           address[alen-1] = 0; /* zero terminate there */
-          addrPointer = address + 1; /* pass the open bracket */
-        }
-        else {
-          addrPointer = address;
         }
 
         if(tail) {
-          tail->ai_next = Curl_str2addr(addrPointer, port);
+          tail->ai_next = Curl_str2addr(address[0] == '['
+                                        ? &address[1] : address, port);
           if(!tail->ai_next)
             goto err;
           tail = tail->ai_next;
         }
         else {
-          head = tail = Curl_str2addr(addrPointer, port);
+          head = tail = Curl_str2addr(address[0] == '['
+                                      ? &address[1] : address, port);
           if(!head)
             goto err;
         }
 
-        if(tmp)
-          last = tmp + 1 + alen;
+        if(addrEnd && addrEnd[1])
+          addrBegin = addrEnd + 1;
         else
           break;
       }
