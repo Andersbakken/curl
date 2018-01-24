@@ -819,47 +819,94 @@ CURLcode Curl_loadhostpairs(struct Curl_easy *data)
     }
     else {
       struct Curl_dns_entry *dns;
-      Curl_addrinfo *addr;
+      Curl_addrinfo *head = 0, *tail = 0;
       char *entry_id;
       size_t entry_len;
-      char buffer[256];
-      char *address = &buffer[0];
+      char address[64];
+      char *addrPointer;
+      char *last;
+      char *tmp;
+      unsigned long tmpPort;
+      int error = true;
 
-      if(3 != sscanf(hostp->data, "%255[^:]:%d:%255s", hostname, &port,
-                     address)) {
+      tmp = strchr(hostp->data, ':');
+      if(!tmp || (tmp - hostp->data) >= (ptrdiff_t)sizeof(hostname)) {
+        goto err;
+      }
+      memcpy(hostname, hostp->data, tmp - hostp->data);
+      hostname[tmp - hostp->data] = '\0';
+
+      tmpPort = strtoul(tmp + 1, &tmp, 10);
+      if(!tmpPort || tmpPort > USHRT_MAX || *tmp != ':' || !(tmp + 1)) {
+        goto err;
+      }
+      port = (int)tmpPort;
+
+      while(true) {
+        size_t alen;
+
+        last = tmp + 1;
+        tmp = strchr(last, ',');
+        if(tmp)
+          alen = tmp - last;
+        else
+          alen = strlen(hostp->data) - (last - hostp->data);
+
+        if(alen >= sizeof(address))
+          goto err;
+
+        memcpy(address, last, alen);
+        address[alen] = '\0';
+
+        /* allow IP(v6) address within [brackets] */
+        if(address[0] == '[') {
+          if(address[alen-1] != ']')
+            /* it needs to also end with ] to be valid */
+            continue;
+          address[alen-1] = 0; /* zero terminate there */
+          addrPointer = address + 1; /* pass the open bracket */
+        }
+        else {
+          addrPointer = address;
+        }
+
+        if(tail) {
+          tail->ai_next = Curl_str2addr(addrPointer, port);
+          if(!tail->ai_next)
+            goto err;
+          tail = tail->ai_next;
+        }
+        else {
+          head = tail = Curl_str2addr(addrPointer, port);
+          if(!head)
+            goto err;
+        }
+
+        if(tmp)
+          last = tmp + 1 + alen;
+        else
+          break;
+      }
+      error = false;
+   err:
+      if(error) {
         infof(data, "Couldn't parse CURLOPT_RESOLVE entry '%s'!\n",
               hostp->data);
+        Curl_freeaddrinfo(head);
         continue;
       }
 
-      /* allow IP(v6) address within [brackets] */
-      if(address[0] == '[') {
-        size_t alen = strlen(address);
-        if(address[alen-1] != ']')
-          /* it needs to also end with ] to be valid */
-          continue;
-        address[alen-1] = 0; /* zero terminate there */
-        address++; /* pass the open bracket */
-      }
-
-      addr = Curl_str2addr(address, port);
-      if(!addr) {
-        infof(data, "Address in '%s' found illegal!\n", hostp->data);
-        continue;
-      }
+      if(data->share)
+        Curl_share_lock(data, CURL_LOCK_DATA_DNS, CURL_LOCK_ACCESS_SINGLE);
 
       /* Create an entry id, based upon the hostname and port */
       entry_id = create_hostcache_id(hostname, port);
       /* If we can't create the entry id, fail */
       if(!entry_id) {
-        Curl_freeaddrinfo(addr);
+        Curl_freeaddrinfo(head);
         return CURLE_OUT_OF_MEMORY;
       }
-
       entry_len = strlen(entry_id);
-
-      if(data->share)
-        Curl_share_lock(data, CURL_LOCK_DATA_DNS, CURL_LOCK_ACCESS_SINGLE);
 
       /* See if its already in our dns cache */
       dns = Curl_hash_pick(data->dns.hostcache, entry_id, entry_len + 1);
@@ -869,7 +916,7 @@ CURLcode Curl_loadhostpairs(struct Curl_easy *data)
 
       if(!dns) {
         /* if not in the cache already, put this host in the cache */
-        dns = Curl_cache_addr(data, addr, hostname, port);
+        dns = Curl_cache_addr(data, head, hostname, port);
         if(dns) {
           dns->timestamp = 0; /* mark as added by CURLOPT_RESOLVE */
           /* release the returned reference; the cache itself will keep the
@@ -881,14 +928,14 @@ CURLcode Curl_loadhostpairs(struct Curl_easy *data)
         /* this is a duplicate, free it again */
         infof(data, "RESOLVE %s:%d is already cached, %s not stored!\n",
               hostname, port, address);
-        Curl_freeaddrinfo(addr);
+        Curl_freeaddrinfo(head);
       }
 
       if(data->share)
         Curl_share_unlock(data, CURL_LOCK_DATA_DNS);
 
       if(!dns) {
-        Curl_freeaddrinfo(addr);
+        Curl_freeaddrinfo(head);
         return CURLE_OUT_OF_MEMORY;
       }
       infof(data, "Added %s:%d:%s to DNS cache\n",
