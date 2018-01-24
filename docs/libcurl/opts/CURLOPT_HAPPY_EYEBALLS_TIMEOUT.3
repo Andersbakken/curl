@@ -30,8 +30,9 @@ CURLcode curl_easy_setopt(CURL *handle, CURLOPT_CONNECTTIMEOUT_MS, long timeout)
 .SH DESCRIPTION
 Pass a long. It should contain the time in milliseconds that you want
 to provide as a head start for ipv6 for the happy eyeballs algorithm.
-Set to zero to switch to the default built-in connection timeout 200 ms.
+.SH DEFAULT
+The default value is 200.
 .SH AVAILABILITY
-Always
+Added in 7.58.1
 .SH RETURN VALUE
 Returns CURLE_OK
