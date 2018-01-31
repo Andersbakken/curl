@@ -7,7 +7,7 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2017, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2018, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
@@ -1662,7 +1662,7 @@ typedef enum {
    * Only supported by the c-ares DNS backend */
   CINIT(DNS_LOCAL_IP4, STRINGPOINT, 222),
 
-  /* Set the local IPv4 address to use for outgoing DNS requests.
+  /* Set the local IPv6 address to use for outgoing DNS requests.
    * Only supported by the c-ares DNS backend */
   CINIT(DNS_LOCAL_IP6, STRINGPOINT, 223),
 
@@ -1819,8 +1819,13 @@ typedef enum {
   /* Post MIME data. */
   CINIT(MIMEPOST, OBJECTPOINT, 269),
 
+  /* Time to use with the CURLOPT_TIMECONDITION. Specified in number of
+     seconds since 1 Jan 1970. */
+  CINIT(TIMEVALUE_LARGE, OFF_T, 270),
+
   /* Head start in milliseconds to give ipv6 for happy eyeballs. */
   CINIT(HAPPY_EYEBALLS_TIMEOUT, LONG, 271),
+
 
   CURLOPT_LASTENTRY /* the last unused */
 } CURLoption;
@@ -2462,6 +2467,7 @@ typedef enum {
   CURLINFO_REQUEST_SIZE     = CURLINFO_LONG   + 12,
   CURLINFO_SSL_VERIFYRESULT = CURLINFO_LONG   + 13,
   CURLINFO_FILETIME         = CURLINFO_LONG   + 14,
+  CURLINFO_FILETIME_T       = CURLINFO_OFF_T  + 14,
   CURLINFO_CONTENT_LENGTH_DOWNLOAD   = CURLINFO_DOUBLE + 15,
   CURLINFO_CONTENT_LENGTH_DOWNLOAD_T = CURLINFO_OFF_T  + 15,
   CURLINFO_CONTENT_LENGTH_UPLOAD     = CURLINFO_DOUBLE + 16,
